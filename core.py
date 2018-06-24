@@ -139,3 +139,41 @@ class MainStateMachine(Module):
         )
 
 
+
+
+
+class Entangler(Module):
+    def __init__(self, pads, phy_apds):
+        self.submodules.msm = MainStateMachine()
+
+        self.submodules._422sigma_seq = ChannelSequencer()
+        self.submodules._1092_seq = ChannelSequencer()
+        self.submodules._422pulsed_seq = ChannelSequencer()
+
+        self.submodules.apd_1_seqs = [ChannelSequencer() for _ in range(2)]
+        self.submodules.apd_2_seqs = [ChannelSequencer() for _ in range(2)]
+
+        self.submodules.apd_1_gates = [InputGater(phy_apds[0]) for _ in range(2)]
+        self.submodules.apd_2_gates = [InputGater(phy_apds[1]) for _ in range(2)]
+
+        self.submodules.heralder = Heralder()
+
+        self.apd_sig = Signal(4)
+
+        for s,g in zip(self.apd_1_seqs, self.apd_1_gates):
+            self.comb += g.gate.eq(s.output)
+        for s,g in zip(self.apd_2_seqs, self.apd_2_gates):
+            self.comb += g.gate.eq(s.output)
+
+        self.comb += [
+            self.apd_sig.eq(Cat(self.apd_1_gates[0].triggered,
+                                self.apd_1_gates[1].triggered,
+                                self.apd_2_gates[0].triggered,
+                                self.apd_2_gates[1].triggered)),
+            self.heralder.sig.eq(self.apd_sig),
+            self.msm.
+        ]
+
+
+
+
