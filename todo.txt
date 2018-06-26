@@ -1,0 +1,15 @@
+- Design RTIO interface (write example code)
+- Design / simulate time difference gating
+- Build RTIO interface
+- Integrate
+- Test:
+    - Does the core time-out correctly if only master or slave running
+    - Do the master and slave cores agree on the number of cycles
+    - Do the cores exit correctly if the herald occurs
+    - Does the pulse sequence look sensible on a scope
+
+
+Problems:
+The pulsed laser jitter is larger than the fibre delay line, hence we need to gate based on the time difference between the pulse input and the APD
+We need to exit the core based on number of clock cycles, rather than number of loops, in case the partner is not ready
+
