@@ -12,4 +12,32 @@
 Problems:
 The pulsed laser jitter is larger than the fibre delay line, hence we need to gate based on the time difference between the pulse input and the APD
 We need to exit the core based on number of clock cycles, rather than number of loops, in case the partner is not ready
+How do we connect the the outputs (1092, 422pulse, 422sigma) - details on how we implement the override
 
+
+---
+
+Input timestamp resolution is 1ns
+Max cycle length is ~10us
+So lets use 14 bits per timestamp (16.38us max)
+
+
+
+
+Registers:
+0b0000 : Config : w: set if master or slave, set if outputs enabled (i.e. un-tris master / slave outputs, override output phys)
+0b0001 : Run : w: trigger sequence on write, set max time to run for
+0b0010 : Cycle length: w:
+0b0011 : Heralds: w: 4x 4 bit heralds, 5th bit in each herald is enable flag for that pattern (to allow working with fewer heralds) -> 20 bits
+
+Timing registers: 3x outputs, 4x gating inputs
+Each has 14 bits t_start, 14 bits t_end -> 32 bits (to align top to dword)
+0b1_000 ... 0b1_110
+
+
+0b10_000 : Status: r: core running?
+0b10_001 : NCycles: r: How many cycles have been completed (reset every write to 'run') (14 bits, will roll over!)
+5x timestamps: r: 14 bits each
+0b11_000 ... 0b11_100
+
+So bits[4:3] = 0 for low reg writes, 1 for timing reg writes, 2 for status reads, 3 for timestamp reads
