@@ -142,7 +142,7 @@ class MainStateMachine(Module):
 
 
 
-class Entangler(Module):
+class EntanglerCore(Module):
     def __init__(self, pads, phy_apds):
         self.submodules.msm = MainStateMachine()
 

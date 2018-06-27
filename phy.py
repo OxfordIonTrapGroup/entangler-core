@@ -5,11 +5,7 @@ from ??? import EntanglerCore
 
 
 class Entangler(Module):
-    def __init__(self, eem_pads, phy_apd1, phy_apd2, phy_422pulse):
-        """eem_pads: pads for inter-Kasli EEM
-        phy_apd1, phy_apd2: phys for APDs!
-        phy_422pulse: phy for 422 pulse input
-        """
+    def __init__(self, if_pads, output_pads, input_phys):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
                 data_width=32,
