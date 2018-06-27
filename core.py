@@ -61,6 +61,22 @@ class InputGater(Module):
         ]
 
 
+
+class GatedDifferenceTrigger(Module):
+    """
+    
+    """
+    def __init__(self, core, phy_start, phy_in1, phy_in2):
+        # The sequence time the start event occured
+        self.ref_coarse_ts = Signal(counter_width)
+        self.ref_fine_ts = Signal(len(phy_start.fine_ts))
+
+
+
+
+
+
+
 class Heralder(Module):
     """Asserts 'herald' if input vector matches any pattern in patterns"""
     def __init__(self, n_sig = 4, n_patterns=1):
@@ -69,7 +85,7 @@ class Heralder(Module):
 
         self.herald = Signal()
 
-        ###
+        # # #
 
         self.comb += self.herald.eq( 0 != Cat(*[p == self.sig for p in self.patterns]))
 
