@@ -143,7 +143,52 @@ class MainStateMachine(Module):
 
 
 class EntanglerCore(Module):
-    def __init__(self, pads, phy_apds):
+    def __init__(self, if_pads, output_pads, output_sigs, input_phys):
+        phy_apd1 = input_phys[0]
+        phy_apd2 = input_phys[1]
+        phy_422pulse = input_phys[2]
+
+        enable = ???
+        is_master = ???
+
+        # Connect output pads to sequencer output when enabled, otherwise use
+        # the RTIO phy output
+        sequencer_outputs = [Signal() for _ in range(4)]
+        for i in range(4):
+            pad = output_pads[i]
+            self.comb += 
+            self.specials += Instance("OBUFDS",
+                          i_I=sequence_outputs[i] if enable else output_sigs[i],
+                          o_O=pad.p, o_OB=pad.n)
+
+        def ts_buf(pad, sig_o, sig_i, en_out)
+            # diff. IO.
+            # sig_o: output from FPGA
+            # sig_i: intput to FPGA
+            # en_out: enable FPGA output driver
+            self.specials += Instance("IOBUFDS_INTERMDISABLE",
+                p_DIFF_TERM="TRUE",
+                p_IBUF_LOW_PWR="TRUE",
+                p_USE_IBUFDISABLE="TRUE",
+                i_IBUFDISABLE=en_out,
+                i_INTERMDISABLE=en_out,
+                i_I=sig_o, o_O=sig_i, i_T=~en_out,
+                io_IO=pad.p, io_IOB=pad.n)
+
+        # Interface between master and slave core
+        ts_buf(output_pads[0],
+            self.msm.ready, self.msm.slave_ready,
+            (~is_master) & enable )
+        ts_buf(output_pads[1],
+            self.msm.trigger_out, self.msm.trigger_in,
+            is_master & enable)
+        ts_buf(output_pads[2],
+            self.msm.success, self.msm.success_in,
+            is_master & enable)
+
+
+
+
         self.submodules.msm = MainStateMachine()
 
         self.submodules._422sigma_seq = ChannelSequencer()

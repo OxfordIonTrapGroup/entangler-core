@@ -23,7 +23,7 @@ class Entangler(_EEM):
         output_sigs = [Signal() for _ in range(4)]
         for i in range(4):
             pads = target.platform.request("dio{}".format(eem_dio), i)
-            output_pads += (pads.p,pads.n)
+            output_pads += pads
             phy = ttl_simple.Output(output_sigs[i])
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
@@ -38,5 +38,5 @@ class Entangler(_EEM):
 
         if_pads = [target.platform.request("if{}".format(eem_interface), i)
                     for i in range(8)]
-        phy = EntanglerCore(if_pads, output_pads, input_phys)
+        phy = EntanglerCore(if_pads, output_pads, output_sigs, input_phys)
         target.rtio_channels.append(rtio.Channel.from_phy(phy))

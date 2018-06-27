@@ -10,7 +10,7 @@ def create_entangler(channel_offset=0, is_master=False):
         0: "_1092_fastsw",
         1: "_422sigma_fastsw",
         2: "_422pulsed_trigger",
-        3: "ttl_test",
+        3: "ttl_entangler",
         # Inputs
         4: "apd_1",
         5: "apd_2",

@@ -5,7 +5,14 @@ from ??? import EntanglerCore
 
 
 class Entangler(Module):
-    def __init__(self, if_pads, output_pads, input_phys):
+    def __init__(self, if_pads, output_pads, output_sigs, input_phys):
+        """
+        if_pads: EEM pads for inter-Kasli link
+        output_pads: pads for 4 output signals
+        output_sigs: signals from output phys, connected to output_pads when
+            core not running
+        input_phys: serdes phys for 4 inputs
+        """
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
                 data_width=32,
@@ -18,6 +25,11 @@ class Entangler(Module):
 
         # # #
 
+        self.submodules.core = EntanglerCore(if_pads, output_pads, output_sigs,
+                        input_phys)
+
+
+
         read_en = self.rtlink.o.address[4]
         write_timings = Signal()
         self.comb += [
@@ -25,8 +37,6 @@ class Entangler(Module):
             write_timings.eq(self.rtlink.o.address[4:3] == 1),
         ]
 
-        self.submodules.core = EntanglerCore(eem_pads, [phy_apd1, phy_apd2],
-                            phy_422pulse)
 
         output_t_starts = [Signal(14) for _ in range(8)]
         output_t_ends = [Signal(14) for _ in range(8)]

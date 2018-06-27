@@ -12,7 +12,7 @@
 Problems:
 The pulsed laser jitter is larger than the fibre delay line, hence we need to gate based on the time difference between the pulse input and the APD
 We need to exit the core based on number of clock cycles, rather than number of loops, in case the partner is not ready
-How do we connect the the outputs (1092, 422pulse, 422sigma) - details on how we implement the override
+How do we ensure the triggers are not floating high if the slave is enabled but the master is not
 
 
 ---
