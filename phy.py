@@ -80,10 +80,15 @@ class Entangler(Module):
                 )
         ]
 
+        # Generate an input event if we have a read request RTIO Output event, 
+        # Or if the core has finished.
+        # If the core is finished output the herald match or 0x3fff on timeout
+        # We expect to never get a read request and a core finished event at the same time
         self.comb += [
-                self.rtlink.i.stb.eq(read),
+                self.rtlink.i.stb.eq(read | self.core.done_stb),
                 self.rtlink.i.data.eq(
-                    Mux(read_timings,
-                        input_timestamps[read_addr],
-                        status if read_addr==0 else n_cycles))
+                    Mux(self.core.done_stb, self.core.heralder.matches if self.core.success else 0x3fff,
+                        Mux(read_timings,
+                            input_timestamps[read_addr],
+                            status if read_addr==0 else n_cycles)))
         ]

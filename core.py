@@ -82,20 +82,29 @@ class Heralder(Module):
     def __init__(self, n_sig = 4, n_patterns=1):
         self.sig = Signal(n_sig)
         self.patterns = [Signal(n_sig) for _ in range(n_patterns)]
+        self.pattern_ens = Signal(n_patterns)
+        self.matches = Signal(n_patterns)
 
         self.herald = Signal()
 
         # # #
 
-        self.comb += self.herald.eq( 0 != Cat(*[p == self.sig for p in self.patterns]))
+        self.comb += [self.matches[i].eq(p==self.sig) for i, p in enumerate(patterns)]
+        self.comb += self.herald.eq( Cat(*[en & match for en,match in zip(self.pattern_ens, self.matches)]))
 
 
 class MainStateMachine(Module):
     def __init__(self):
         self.m = Signal(counter_width)
-        self.cycles_remaining = Signal(16)
-        self.run = Signal()
+        self.time_remaining = Signal(32) # Clock cycles remaining before timeout
+        self.cycles_completed = Signal(14) # How many iterations of the loop have completed since last start
+
+        self.run_stb = Signal() # Pulsed to start core running until timeout or success
+        self.done_stb = Signal() # Pulsed when core has finished (on timeout or success)
+
+        self.timeout = Signal()
         self.success = Signal()
+
         self.ready = Signal()
 
         self.herald = Signal()
@@ -112,7 +121,15 @@ class MainStateMachine(Module):
 
         ###
 
-        self.comb += self.ready.eq( (self.cycles_remaining != 0) & self.run & ~self.success)
+        self.comb += self.timeout.eq(self.time_remaining == 0)
+        self.sync += If(~self.timeout, self.time_remaining.eq(self.time_remaining-1))
+
+        # Ready asserted when run_stb is pulsed, and cleared on success or timeout
+        self.sync += [
+            self.done_stb.eq(0),
+            If(self.run_stb, self.ready.eq(1), self.cycles_completed.eq(0), self.success.eq(0)),
+            If(self.timeout | self.success, self.ready.eq(0), self.done_stb.eq(1))
+        ]
 
         fsm = FSM()
         self.submodules += fsm
@@ -137,7 +154,7 @@ class MainStateMachine(Module):
         fsm.act("COUNTER",
             NextValue(self.m, self.m + 1),
             If(self.m == self.m_end,
-                NextValue(self.cycles_remaining, self.cycles_remaining-1),
+                NextValue(self.cycles_completed, self.cycles_completed+1),
                 If(self.is_master, 
                     If(self.herald, NextValue(self.success, 1)),
                     NextState("IDLE")
@@ -194,13 +211,13 @@ class EntanglerCore(Module):
         # Interface between master and slave core
         ts_buf(output_pads[0],
             self.msm.ready, self.msm.slave_ready,
-            (~is_master) & enable )
+            ~is_master)
         ts_buf(output_pads[1],
             self.msm.trigger_out, self.msm.trigger_in,
-            is_master & enable)
+            is_master)
         ts_buf(output_pads[2],
             self.msm.success, self.msm.success_in,
-            is_master & enable)
+            is_master)
 
 
 

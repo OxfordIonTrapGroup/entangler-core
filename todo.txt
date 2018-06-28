@@ -1,6 +1,5 @@
-- Implement timeout / herald logic, and hook up to RTIO input event
 - Design / simulate time difference gating
-- Build RTIO interface
+- Finish RTIO interface
 - Integrate
 - Test:
     - Does the core time-out correctly if only master or slave running
