@@ -35,29 +35,78 @@ class ChannelSequencer(Module):
 
 
 class InputGater(Module):
-    """Simple event gater that connects to the ISERDES of a ttl_serdes_generic
-    phy.
+    """Event gater that connects to ttl_serdes_generic phys.
 
-    Latches rising edge events when the gate is open, and asserts the triggered
-    flag. The module is reset (triggered flag cleared) by asserting clear.
+    The gate is defined as a time window after a reference event occurs.
+    The reference time is that of a rising edge on phy_ref. There is no protection against multiple edges on phy_ref.
+    The gate start and stop are specified as offsets in mu (=1ns mostly) from this reference event.
+
+    The module is triggered after it has seen a reference event, then subsequently a signal edge in the gate window.
+    Once the module is triggered subsequent signal edges are ignored.
+    Clear has to be asserted to clear the reference edge and the triggered flag.
+
+    The start gate offset must be at least 8mu.
     """
-    def __init__(self, phy=None):
-        self.m = Signal() # Counter
-        self.gate = Signal() # Asserted when we should register events
+    def __init__(self, phy_ref, phy_sig):
+        self.m = Signal(14) # Counter
         self.clear = Signal()
 
         self.triggered = Signal()
-        self.coarse_ts = Signal(counter_width)
-        self.fine_ts = Signal(len(phy.fine_ts))
-        ###
+
+        n_fine = len(phy_ref.fine_ts)
+
+        self.ref_coarse_ts = Signal(counter_width)
+        self.ref_fine_ts = Signal(n_fine)
+
+        self.sig_coarse_ts = Signal(counter_width)
+        self.sig_fine_ts = Signal(n_fine)
+
+        # In mu
+        self.gate_start = Signal(14)
+        self.gate_stop = Signal(14)
+
+        # # #
+
+        got_ref = Signal()
+
+        # Absolute gate times, calculated when we get the reference event
+        abs_gate_start = Signal(counter_width+n_fine)
+        abs_gate_stop = Signal(counter_width+n_fine)
+
+        t_ref = Signal(counter_width+n_fine)
+        self.comb += t_ref.eq(Cat(phy_ref.fine_ts,self.m))
 
         self.sync += [
-            If(self.gate & phy.stb_rising,
-                self.triggered.eq(1),
-                self.fine_ts.eq(phy.fine_ts),
-                self.coarse_ts.eq(m)
+            If(phy_ref.stb_rising,
+                got_ref.eq(1),
+                self.ref_coarse_ts.eq(self.m),
+                self.ref_fine_ts.eq(phy_ref.fine_ts),
+                abs_gate_start.eq(self.gate_start + t_ref),
+                abs_gate_stop.eq(self.gate_stop + t_ref)
             ),
-            If(self.clear, self.triggered.eq(0))
+            If(self.clear,
+                got_ref.eq(0),
+                self.triggered.eq(0)
+            )
+        ]
+
+        past_window_start = Signal()
+        before_window_end = Signal()
+        triggering = Signal()
+        t_sig = Signal(counter_width+n_fine)
+        self.comb += [
+            t_sig.eq(Cat(phy_sig.fine_ts,self.m)),
+            past_window_start.eq(t_sig >= abs_gate_start),
+            before_window_end.eq(t_sig <= abs_gate_stop),
+            triggering.eq(past_window_start & before_window_end)
+        ]
+
+        self.sync += [
+            If(phy_sig.stb_rising & ~self.triggered,
+                self.triggered.eq(triggering),
+                self.sig_coarse_ts.eq(self.m),
+                self.sig_fine_ts.eq(phy_sig.fine_ts)
+            )
         ]
 
 
@@ -181,20 +230,19 @@ class EntanglerCore(Module):
         phy_apd2 = input_phys[1]
         phy_422pulse = input_phys[2]
 
-        enable = ???
-        is_master = ???
+        enable = Signal()
+        is_master = Signal()
 
         # Connect output pads to sequencer output when enabled, otherwise use
         # the RTIO phy output
         sequencer_outputs = [Signal() for _ in range(4)]
         for i in range(4):
             pad = output_pads[i]
-            self.comb += 
             self.specials += Instance("OBUFDS",
                           i_I=sequence_outputs[i] if enable else output_sigs[i],
                           o_O=pad.p, o_OB=pad.n)
 
-        def ts_buf(pad, sig_o, sig_i, en_out)
+        def ts_buf(pad, sig_o, sig_i, en_out):
             # diff. IO.
             # sig_o: output from FPGA
             # sig_i: intput to FPGA
@@ -249,7 +297,7 @@ class EntanglerCore(Module):
                                 self.apd_2_gates[0].triggered,
                                 self.apd_2_gates[1].triggered)),
             self.heralder.sig.eq(self.apd_sig),
-            self.msm.
+            # self.msm.
         ]
 
 
