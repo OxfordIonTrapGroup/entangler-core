@@ -52,6 +52,8 @@ def test(dut):
         yield
     yield from out(0b00, 0b110)
     yield from out(0b10, 30)
+    yield from out(0b1000, 10*2**16 + 5)
+    yield from out(0b1000+3, 10*2**16 + 5)
     for _ in range(5):
         yield
 

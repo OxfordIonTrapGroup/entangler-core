@@ -32,9 +32,8 @@ class Entangler(Module):
         write_timings = Signal()
         self.comb += [
             self.rtlink.o.busy.eq(0),
-            write_timings.eq(self.rtlink.o.address[4:3] == 1),
+            write_timings.eq(self.rtlink.o.address[3:4] == 1),
         ]
-
 
         output_t_starts = [seq.m_start for seq in self.core.sequencers]
         output_t_ends = [seq.m_stop for seq in self.core.sequencers]
@@ -45,14 +44,14 @@ class Entangler(Module):
                                 for gaters in self.core.apd_gaters
                                 for gater in gaters]
         cases = {}
-        for i in range(7):
-            cases[i] = [output_t_starts[i].eq(self.rtlink.o.data[13:]),
-                        output_t_ends[i].eq(self.rtlink.o.data[29:17])]
+        for i in range(len(output_t_starts)):
+            cases[i] = [output_t_starts[i].eq(self.rtlink.o.data[:16]),
+                        output_t_ends[i].eq(self.rtlink.o.data[16:])]
 
         self.sync.rio += [
             self.core.msm.run_stb.eq(0),
             If(write_timings & self.rtlink.o.stb,
-                    Case(self.rtlink.o.address[2:], cases)
+                    Case(self.rtlink.o.address[:2], cases)
                     # output_t_starts[self.rtlink.o.address[2:]].eq(self.rtlink.o.data[13:]),
                     # output_t_ends[self.rtlink.o.address[2:]].eq(self.rtlink.o.data[29:16])
                 ),
