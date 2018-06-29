@@ -52,12 +52,8 @@ class InputGater(Module):
 
         n_fine = len(phy_ref.fine_ts)
 
-        self.ref_coarse_ts = Signal(counter_width)
-        self.ref_fine_ts = Signal(n_fine)
-
-        self.sig_coarse_ts = Signal(counter_width)
-        self.sig_fine_ts = Signal(n_fine)
-
+        self.ref_ts = Signal(counter_width+n_fine)
+        self.sig_ts = Signal(counter_width+n_fine)
 
         # In mu
         self.gate_start = Signal(14)
@@ -77,8 +73,7 @@ class InputGater(Module):
         self.sync += [
             If(phy_ref.stb_rising,
                 got_ref.eq(1),
-                self.ref_coarse_ts.eq(m),
-                self.ref_fine_ts.eq(phy_ref.fine_ts),
+                self.ref_ts.eq(t_ref),
                 abs_gate_start.eq(self.gate_start + t_ref),
                 abs_gate_stop.eq(self.gate_stop + t_ref)
             ),
@@ -102,8 +97,7 @@ class InputGater(Module):
         self.sync += [
             If(phy_sig.stb_rising & ~self.triggered,
                 self.triggered.eq(triggering),
-                self.sig_coarse_ts.eq(m),
-                self.sig_fine_ts.eq(phy_sig.fine_ts)
+                self.sig_ts.eq(t_sig)
             )
         ]
 
