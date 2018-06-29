@@ -1,7 +1,7 @@
 from migen import *
 
 from artiq.gateware.rtio import rtlink
-from ??? import EntanglerCore
+from entangler.core import EntanglerCore
 
 
 class Entangler(Module):
@@ -38,27 +38,40 @@ class Entangler(Module):
         ]
 
 
-        output_t_starts = [Signal(14) for _ in range(8)]
-        output_t_ends = [Signal(14) for _ in range(8)]
-
+        output_t_starts = [seq.m_start for seq in self.core.sequencers]
+        output_t_ends = [seq.m_stop for seq in self.core.sequencers]
+        output_t_starts += [gater.gate_start
+                                for gaters in self.apd_gaters
+                                for gater in gaters]
+        output_t_ends += [gater.gate_end
+                                for gaters in self.apd_gaters
+                                for gater in gaters]
 
         self.sync.rio += [
+            self.core.msm.run_stb.eq(0),
             If(write_timings & self.rtlink.o.stb, 
                     output_t_starts[self.rtlink.o.address[2:]].eq(self.rtlink.o.data[13:]),
                     output_t_ends[self.rtlink.o.address[2:]].eq(self.rtlink.o.data[29:16])
                 ),
             If(self.rtlink.o.address==0 & self.rtlink.o.stb,
                     # Write config
+                    self.core.enable.eq(self.rtlink.o.data[0]),
+                    self.core.msm.is_master.eq(self.rtlink.o.data[1]),
+                    self.core.msm.standalone.eq(self.rtlink.o.data[2]),
                 ),
             If(self.rtlink.o.address==1 & self.rtlink.o.stb,
-                    # Pulse run flag
-                    # Write timeout reg
+                    # Write timeout counter and start core running
+                    self.core.msm.time_remaining.eq(self.rtlink.o.data),
+                    self.core.msm.run_stb.eq(1)
                 ),
             If(self.rtlink.o.address==2 & self.rtlink.o.stb,
                     # Write cycle length
+                    self.core.msm.m_end.eq(self.rtlink.o.data[:10])
                 ),
             If(self.rtlink.o.address==3 & self.rtlink.o.stb,
-                    # Write herald pattern
+                    # Write herald patterns and enables
+                    *[self.core.heralder.patterns[i].eq(self.rtlink.o.data[4*i:4*(i+1)]) for i in range(4)],
+                    self.core.heralder.pattern_ens.eq(self.rtlink.o.data[16:20])
                 ),
         ]
 
@@ -67,7 +80,11 @@ class Entangler(Module):
         read_timings = Signal()
         read_addr = Signal()
 
-        input_timestamps = [Signal(14) for _ in range(5)]
+        # Input timestamps are [ref, apd1_1, apd1_2, apd2_1, apd2_2]
+        input_timestamps = self.apd_gaters[0][0].t_ref
+        input_timestamps += [gater.t_sig
+                                for gaters in self.apd_gaters
+                                for gater in gaters]
 
         self.sync.rio += [
                 If(read,
@@ -79,6 +96,12 @@ class Entangler(Module):
                     read_addr.eq(self.rtlink.o.address[2:]),
                 )
         ]
+
+        n_cycles = self.core.msm.cycles_completed 
+        status = Signal(2)
+        self.comb += status.eq(Cat(self.core.msm.ready,
+                                   self.core.msm.success,
+                                   self.core.msm.timeout))
 
         # Generate an input event if we have a read request RTIO Output event, 
         # Or if the core has finished.

@@ -1,6 +1,6 @@
 from migen import *
 
-counter_width = 10
+counter_width = 11
 
 
 class ChannelSequencer(Module):
@@ -57,6 +57,7 @@ class InputGater(Module):
 
         self.sig_coarse_ts = Signal(counter_width)
         self.sig_fine_ts = Signal(n_fine)
+
 
         # In mu
         self.gate_start = Signal(14)
