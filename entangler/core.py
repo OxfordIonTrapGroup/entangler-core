@@ -140,6 +140,7 @@ class MainStateMachine(Module):
         self.herald = Signal()
 
         self.is_master = Signal()
+        self.standalone = Signal() # Asserted with is_master, ignore slave state for single-device testing
 
         self.trigger_out = Signal() # Trigger to slave
         self.trigger_in = Signal() # Trigger from master
@@ -174,7 +175,7 @@ class MainStateMachine(Module):
 
         fsm.act("IDLE",
             If(self.is_master,
-                If(~done & self.slave_ready & self.ready, NextState("TRIGGER_SLAVE"))
+                If(~done & self.ready & (self.slave_ready | self.standalone), NextState("TRIGGER_SLAVE"))
             ).Else(
                 If(~done & self.ready & self.trigger_in, NextState("COUNTER"))
             ),
@@ -259,13 +260,13 @@ class EntanglerCore(Module):
         # Interface between master and slave core
         ts_buf(output_pads[0],
             self.msm.ready, self.msm.slave_ready,
-            ~self.msm.is_master)
+            ~self.msm.is_master & ~self.msm.standalone)
         ts_buf(output_pads[1],
             self.msm.trigger_out, self.msm.trigger_in,
-            self.msm.is_master)
+            self.msm.is_master & ~self.msm.standalone)
         ts_buf(output_pads[2],
             self.msm.success, self.msm.success_in,
-            self.msm.is_master)
+            self.msm.is_master & ~self.msm.standalone)
 
         # Connect heralder module signal in order
         # [apd1_gate1, apd1_gate2, apd2_gate1, apd2_gate2]

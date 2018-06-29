@@ -1,3 +1,4 @@
+- Design stand-alone mode
 - Finish RTIO interface
 - Integrate
 - Test:
@@ -7,6 +8,10 @@
     - Does the pulse sequence look sensible on a scope
 
 
+---
+Stand-alone mode:
+standalone flag set as well as is_master flag. 
+Interconnect interface tristated, ignore slave ready signal
 
 ---
 
