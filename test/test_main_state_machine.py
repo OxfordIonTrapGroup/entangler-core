@@ -37,6 +37,23 @@ class MsmPair(Module):
         ]
 
 
+def msm_standalone_test(dut):
+    yield dut.m_end.eq(10)
+    yield dut.is_master.eq(1)
+    yield dut.standalone.eq(1)
+    yield dut.time_remaining.eq(100)
+
+    yield
+    yield
+    yield dut.run_stb.eq(1)
+    yield
+    yield dut.run_stb.eq(0)
+
+    for i in range(50):
+        if i == 40:
+            yield dut.herald.eq(1)
+        yield
+
 def msm_pair_test(dut):
     yield dut.master.m_end.eq(10)
     yield dut.slave.m_end.eq(10)
@@ -59,4 +76,7 @@ def msm_pair_test(dut):
 
 if __name__ == "__main__":
     dut = MsmPair()
-    run_simulation(dut, msm_pair_test(dut), vcd_name="msm.vcd")
+    run_simulation(dut, msm_pair_test(dut), vcd_name="msm_pair.vcd")
+
+    dut = MainStateMachine()
+    run_simulation(dut, msm_standalone_test(dut), vcd_name="msm_standalone.vcd")

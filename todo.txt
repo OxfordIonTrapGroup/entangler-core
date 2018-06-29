@@ -1,4 +1,3 @@
-- Design stand-alone mode
 - Finish RTIO interface
 - Integrate
 - Test:
