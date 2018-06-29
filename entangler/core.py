@@ -14,7 +14,7 @@ class ChannelSequencer(Module):
 
         self.output = Signal()
 
-        ###
+        # # #
 
         self.comb += [
             self.stb_start.eq(m == self.m_start),
@@ -149,7 +149,10 @@ class MainStateMachine(Module):
 
         self.m_end = Signal(counter_width) # Number of clock cycles to run main loop for
 
-        ###
+        # Asserted at the start of each entanglement attempt cycle
+        self.cycle_starting = Signal()
+
+        # # #
 
         self.comb += self.timeout.eq(self.time_remaining == 0)
         self.sync += If(~self.timeout, self.time_remaining.eq(self.time_remaining-1))
@@ -160,6 +163,8 @@ class MainStateMachine(Module):
             If(self.run_stb, self.ready.eq(1), self.cycles_completed.eq(0), self.success.eq(0)),
             If(self.timeout | self.success, self.ready.eq(0), self.done_stb.eq(1))
         ]
+
+        self.comb += self.cycle_starting.eq(self.m==0)
 
         fsm = FSM()
         self.submodules += fsm
@@ -207,21 +212,32 @@ class MainStateMachine(Module):
 
 class EntanglerCore(Module):
     def __init__(self, if_pads, output_pads, output_sigs, input_phys):
+        self.enable = Signal()
+        # # #
+
         phy_apd1 = input_phys[0]
         phy_apd2 = input_phys[1]
         phy_422pulse = input_phys[2]
 
-        enable = Signal()
-        is_master = Signal()
+        self.submodules.msm = MainStateMachine()
+
+        self.submodules.sequencers = [ChannelSequencer() for _ in range(4)]
+
+        self.submodules.apd_gaters = [[InputGater(self.msm.m, phy_422pulse, phy_sig) 
+                                                        for _ in range(2)]
+                                            for phy_sig in [phy_apd1, phy_apd2]]
+
+        self.submodules.heralder = Heralder(n_sig=4, n_patterns=4)
 
         # Connect output pads to sequencer output when enabled, otherwise use
         # the RTIO phy output
-        sequencer_outputs = [Signal() for _ in range(4)]
         for i in range(4):
+            sequencer_sig = self.sequencers[i].output
             pad = output_pads[i]
             self.specials += Instance("OBUFDS",
-                          i_I=sequence_outputs[i] if enable else output_sigs[i],
+                          i_I=sequencer_sig if self.enable else output_sigs[i],
                           o_O=pad.p, o_OB=pad.n)
+
 
         def ts_buf(pad, sig_o, sig_i, en_out):
             # diff. IO.
@@ -240,47 +256,30 @@ class EntanglerCore(Module):
         # Interface between master and slave core
         ts_buf(output_pads[0],
             self.msm.ready, self.msm.slave_ready,
-            ~is_master)
+            ~self.msm.is_master)
         ts_buf(output_pads[1],
             self.msm.trigger_out, self.msm.trigger_in,
-            is_master)
+            self.msm.is_master)
         ts_buf(output_pads[2],
             self.msm.success, self.msm.success_in,
-            is_master)
+            self.msm.is_master)
 
+        # Connect heralder module signal in order
+        # [apd1_gate1, apd1_gate2, apd2_gate1, apd2_gate2]
+        self.comb += self.heralder.sig.eq( 
+                Cat(*[gater.triggered 
+                            for gaters in self.apd_gaters
+                            for gater in gaters])
+            )
 
+        # Clear gater and sequencer state at start of each cycle
+        self.comb += [gater.clear.eq(self.msm.cycle_starting)
+                            for gaters in self.apd_gaters
+                            for gater in gaters]
+        self.comb += [sequencer.clear.eq(self.msm.cycle_starting)
+                            for sequencer in self.sequencers]
 
-
-        self.submodules.msm = MainStateMachine()
-
-        self.submodules._422sigma_seq = ChannelSequencer()
-        self.submodules._1092_seq = ChannelSequencer()
-        self.submodules._422pulsed_seq = ChannelSequencer()
-
-        self.submodules.apd_1_seqs = [ChannelSequencer() for _ in range(2)]
-        self.submodules.apd_2_seqs = [ChannelSequencer() for _ in range(2)]
-
-        self.submodules.apd_1_gates = [InputGater(phy_apds[0]) for _ in range(2)]
-        self.submodules.apd_2_gates = [InputGater(phy_apds[1]) for _ in range(2)]
-
-        self.submodules.heralder = Heralder()
-
-        self.apd_sig = Signal(4)
-
-        for s,g in zip(self.apd_1_seqs, self.apd_1_gates):
-            self.comb += g.gate.eq(s.output)
-        for s,g in zip(self.apd_2_seqs, self.apd_2_gates):
-            self.comb += g.gate.eq(s.output)
-
-        self.comb += [
-            self.apd_sig.eq(Cat(self.apd_1_gates[0].triggered,
-                                self.apd_1_gates[1].triggered,
-                                self.apd_2_gates[0].triggered,
-                                self.apd_2_gates[1].triggered)),
-            self.heralder.sig.eq(self.apd_sig),
-            # self.msm.
-        ]
-
+        self.comb += self.msm.herald.eq(self.heralder.herald)
 
 
 
