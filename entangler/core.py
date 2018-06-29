@@ -157,11 +157,14 @@ class MainStateMachine(Module):
         self.comb += self.timeout.eq(self.time_remaining == 0)
         self.sync += If(~self.timeout, self.time_remaining.eq(self.time_remaining-1))
 
+        done = Signal()
+        self.comb += done.eq(self.timeout | self.success)
+
         # Ready asserted when run_stb is pulsed, and cleared on success or timeout
         self.sync += [
             self.done_stb.eq(0),
             If(self.run_stb, self.ready.eq(1), self.cycles_completed.eq(0), self.success.eq(0)),
-            If(self.timeout | self.success, self.ready.eq(0), self.done_stb.eq(1))
+            If(done, self.ready.eq(0), self.done_stb.eq(1))
         ]
 
         self.comb += self.cycle_starting.eq(self.m==0)
@@ -171,9 +174,9 @@ class MainStateMachine(Module):
 
         fsm.act("IDLE",
             If(self.is_master,
-                If(self.slave_ready & self.ready, NextState("TRIGGER_SLAVE"))
+                If(~done & self.slave_ready & self.ready, NextState("TRIGGER_SLAVE"))
             ).Else(
-                If(self.ready & self.trigger_in, NextState("COUNTER"))
+                If(~done & self.ready & self.trigger_in, NextState("COUNTER"))
             ),
             NextValue(self.m, 0),
             self.trigger_out.eq(0)

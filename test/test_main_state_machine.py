@@ -6,7 +6,7 @@ from entangler.core import *
 def msm_master_test(dut):
     yield dut.m_end.eq(10)
     yield dut.is_master.eq(1)
-    yield dut.cycles_remaining.eq(3)
+    yield dut.time_remaining.eq(100)
 
     for i in range(30):
         if i == 5:
@@ -40,16 +40,20 @@ class MsmPair(Module):
 def msm_pair_test(dut):
     yield dut.master.m_end.eq(10)
     yield dut.slave.m_end.eq(10)
-    yield dut.master.cycles_remaining.eq(4)
-    yield dut.slave.cycles_remaining.eq(4)
+    yield dut.master.time_remaining.eq(100)
+    yield dut.slave.time_remaining.eq(100)
 
     yield
-    yield dut.master.run.eq(1)
+    yield dut.master.run_stb.eq(1)
+    yield
+    yield dut.master.run_stb.eq(0)
 
     for i in range(100):
         if i == 4:
-            yield dut.slave.run.eq(1)
-        if i == 50:
+            yield dut.slave.run_stb.eq(1)
+        if i == 5:
+            yield dut.slave.run_stb.eq(0)
+        if i == 9:
             yield dut.master.herald.eq(1)
         yield
 
