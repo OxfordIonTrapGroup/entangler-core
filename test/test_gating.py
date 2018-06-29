@@ -30,9 +30,8 @@ class GaterHarness(Module):
         self.submodules.phy_ref = MockPhy(self.m)
         self.submodules.phy_sig = MockPhy(self.m)
 
-        core = InputGater(self.phy_ref, self.phy_sig)
+        core = InputGater(self.m, self.phy_ref, self.phy_sig)
         self.submodules.core = core
-        self.comb += core.m.eq(self.m)
         self.comb += core.clear.eq(self.rst)
 
 

@@ -4,8 +4,7 @@ counter_width = 10
 
 
 class ChannelSequencer(Module):
-    def __init__(self):
-        self.m = Signal(counter_width) # Counter
+    def __init__(self, m):
         self.m_start = Signal(counter_width)
         self.m_stop = Signal(counter_width)
         self.clear = Signal()
@@ -18,8 +17,8 @@ class ChannelSequencer(Module):
         ###
 
         self.comb += [
-            self.stb_start.eq(self.m == self.m_start),
-            self.stb_stop.eq(self.m == self.m_stop)
+            self.stb_start.eq(m == self.m_start),
+            self.stb_stop.eq(m == self.m_stop)
         ]
 
         self.sync += [
@@ -31,7 +30,6 @@ class ChannelSequencer(Module):
             ),
             If(self.clear, self.output.eq(0))
         ]
-
 
 
 class InputGater(Module):
@@ -47,8 +45,7 @@ class InputGater(Module):
 
     The start gate offset must be at least 8mu.
     """
-    def __init__(self, phy_ref, phy_sig):
-        self.m = Signal(14) # Counter
+    def __init__(self, m, phy_ref, phy_sig):
         self.clear = Signal()
 
         self.triggered = Signal()
@@ -74,12 +71,12 @@ class InputGater(Module):
         abs_gate_stop = Signal(counter_width+n_fine)
 
         t_ref = Signal(counter_width+n_fine)
-        self.comb += t_ref.eq(Cat(phy_ref.fine_ts,self.m))
+        self.comb += t_ref.eq(Cat(phy_ref.fine_ts,m))
 
         self.sync += [
             If(phy_ref.stb_rising,
                 got_ref.eq(1),
-                self.ref_coarse_ts.eq(self.m),
+                self.ref_coarse_ts.eq(m),
                 self.ref_fine_ts.eq(phy_ref.fine_ts),
                 abs_gate_start.eq(self.gate_start + t_ref),
                 abs_gate_stop.eq(self.gate_stop + t_ref)
@@ -95,7 +92,7 @@ class InputGater(Module):
         triggering = Signal()
         t_sig = Signal(counter_width+n_fine)
         self.comb += [
-            t_sig.eq(Cat(phy_sig.fine_ts,self.m)),
+            t_sig.eq(Cat(phy_sig.fine_ts,m)),
             past_window_start.eq(t_sig >= abs_gate_start),
             before_window_end.eq(t_sig <= abs_gate_stop),
             triggering.eq(past_window_start & before_window_end)
@@ -104,26 +101,10 @@ class InputGater(Module):
         self.sync += [
             If(phy_sig.stb_rising & ~self.triggered,
                 self.triggered.eq(triggering),
-                self.sig_coarse_ts.eq(self.m),
+                self.sig_coarse_ts.eq(m),
                 self.sig_fine_ts.eq(phy_sig.fine_ts)
             )
         ]
-
-
-
-class GatedDifferenceTrigger(Module):
-    """
-    
-    """
-    def __init__(self, core, phy_start, phy_in1, phy_in2):
-        # The sequence time the start event occured
-        self.ref_coarse_ts = Signal(counter_width)
-        self.ref_fine_ts = Signal(len(phy_start.fine_ts))
-
-
-
-
-
 
 
 class Heralder(Module):
@@ -143,7 +124,7 @@ class Heralder(Module):
 
 
 class MainStateMachine(Module):
-    def __init__(self):
+    def __init__(self, counter_width=10):
         self.m = Signal(counter_width)
         self.time_remaining = Signal(32) # Clock cycles remaining before timeout
         self.cycles_completed = Signal(14) # How many iterations of the loop have completed since last start
