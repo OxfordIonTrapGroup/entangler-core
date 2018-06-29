@@ -119,8 +119,8 @@ class Heralder(Module):
 
         # # #
 
-        self.comb += [self.matches[i].eq(p==self.sig) for i, p in enumerate(patterns)]
-        self.comb += self.herald.eq( Cat(*[en & match for en,match in zip(self.pattern_ens, self.matches)]))
+        self.comb += [self.matches[i].eq(p==self.sig) for i, p in enumerate(self.patterns)]
+        self.comb += self.herald.eq( self.pattern_ens & self.matches != 0 )
 
 
 class MainStateMachine(Module):
