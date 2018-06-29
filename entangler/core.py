@@ -215,17 +215,17 @@ class MainStateMachine(Module):
 
 
 class EntanglerCore(Module):
-    def __init__(self, if_pads, output_pads, output_sigs, input_phys):
+    def __init__(self, if_pads, output_pads, output_sigs, input_phys, simulate=False):
         self.enable = Signal()
         # # #
 
-        phy_apd1 = input_phys[0]
-        phy_apd2 = input_phys[1]
-        phy_422pulse = input_phys[2]
+        phy_422pulse = input_phys[0]
+        phy_apd1 = input_phys[1]
+        phy_apd2 = input_phys[2]
 
         self.submodules.msm = MainStateMachine()
 
-        self.submodules.sequencers = [ChannelSequencer() for _ in range(4)]
+        self.submodules.sequencers = [ChannelSequencer(self.msm.m) for _ in range(4)]
 
         self.submodules.apd_gaters = [[InputGater(self.msm.m, phy_422pulse, phy_sig) 
                                                         for _ in range(2)]
@@ -233,40 +233,41 @@ class EntanglerCore(Module):
 
         self.submodules.heralder = Heralder(n_sig=4, n_patterns=4)
 
-        # Connect output pads to sequencer output when enabled, otherwise use
-        # the RTIO phy output
-        for i in range(4):
-            sequencer_sig = self.sequencers[i].output
-            pad = output_pads[i]
-            self.specials += Instance("OBUFDS",
-                          i_I=sequencer_sig if self.enable else output_sigs[i],
-                          o_O=pad.p, o_OB=pad.n)
+        if not simulate:
+            # Connect output pads to sequencer output when enabled, otherwise use
+            # the RTIO phy output
+            for i in range(4):
+                sequencer_sig = self.sequencers[i].output
+                pad = output_pads[i]
+                self.specials += Instance("OBUFDS",
+                              i_I=sequencer_sig if self.enable else output_sigs[i],
+                              o_O=pad.p, o_OB=pad.n)
 
 
-        def ts_buf(pad, sig_o, sig_i, en_out):
-            # diff. IO.
-            # sig_o: output from FPGA
-            # sig_i: intput to FPGA
-            # en_out: enable FPGA output driver
-            self.specials += Instance("IOBUFDS_INTERMDISABLE",
-                p_DIFF_TERM="TRUE",
-                p_IBUF_LOW_PWR="TRUE",
-                p_USE_IBUFDISABLE="TRUE",
-                i_IBUFDISABLE=en_out,
-                i_INTERMDISABLE=en_out,
-                i_I=sig_o, o_O=sig_i, i_T=~en_out,
-                io_IO=pad.p, io_IOB=pad.n)
+            def ts_buf(pad, sig_o, sig_i, en_out):
+                # diff. IO.
+                # sig_o: output from FPGA
+                # sig_i: intput to FPGA
+                # en_out: enable FPGA output driver
+                self.specials += Instance("IOBUFDS_INTERMDISABLE",
+                    p_DIFF_TERM="TRUE",
+                    p_IBUF_LOW_PWR="TRUE",
+                    p_USE_IBUFDISABLE="TRUE",
+                    i_IBUFDISABLE=en_out,
+                    i_INTERMDISABLE=en_out,
+                    i_I=sig_o, o_O=sig_i, i_T=~en_out,
+                    io_IO=pad.p, io_IOB=pad.n)
 
-        # Interface between master and slave core
-        ts_buf(output_pads[0],
-            self.msm.ready, self.msm.slave_ready,
-            ~self.msm.is_master & ~self.msm.standalone)
-        ts_buf(output_pads[1],
-            self.msm.trigger_out, self.msm.trigger_in,
-            self.msm.is_master & ~self.msm.standalone)
-        ts_buf(output_pads[2],
-            self.msm.success, self.msm.success_in,
-            self.msm.is_master & ~self.msm.standalone)
+            # Interface between master and slave core
+            ts_buf(output_pads[0],
+                self.msm.ready, self.msm.slave_ready,
+                ~self.msm.is_master & ~self.msm.standalone)
+            ts_buf(output_pads[1],
+                self.msm.trigger_out, self.msm.trigger_in,
+                self.msm.is_master & ~self.msm.standalone)
+            ts_buf(output_pads[2],
+                self.msm.success, self.msm.success_in,
+                self.msm.is_master & ~self.msm.standalone)
 
         # Connect heralder module signal in order
         # [apd1_gate1, apd1_gate2, apd2_gate1, apd2_gate2]

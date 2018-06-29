@@ -5,6 +5,8 @@
     - Do the master and slave cores agree on the number of cycles
     - Do the cores exit correctly if the herald occurs
     - Does the pulse sequence look sensible on a scope
+    - Are there any clock domain funnies
+    - Does the time gating work properly (loop back outputs to inputs and scan across window to test)
 
 
 ---
@@ -22,7 +24,9 @@ So lets use 14 bits per timestamp (16.38us max)
 
 
 Registers:
-0b0000 : Config : w: set if master or slave, set if outputs enabled (i.e. un-tris master / slave outputs, override output phys)
+0b0000 : Config : w:
+    from low to high bits [enable, is_master, standalone]
+    set if master or slave, set if outputs enabled (i.e. un-tris master / slave outputs, override output phys)
 0b0001 : Run : w: trigger sequence on write, set max time to run for
 0b0010 : Cycle length: w:
 0b0011 : Heralds: w: 4x 4 bit heralds, 5th bit in each herald is enable flag for that pattern (to allow working with fewer heralds) -> 20 bits
@@ -38,6 +42,9 @@ Each has 14 bits t_start, 14 bits t_end -> 32 bits (to align top to dword)
 0b11_000 ... 0b11_100
 
 So bits[4:3] = 0 for low reg writes, 1 for timing reg writes, 2 for status reads, 3 for timestamp reads
+
+
+The smallest time stamp that is valid for output events is 1 (0 makes the output stay off permantly)
 
 
 ---
