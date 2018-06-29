@@ -1,5 +1,5 @@
 from migen import *
-from core import *
+from entangler.core import *
 
 class MockPhy(Module):
     def __init__(self, counter):

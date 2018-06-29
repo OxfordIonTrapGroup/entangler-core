@@ -1,5 +1,5 @@
 from migen import *
-from core import *
+from entangler.core import *
 
 def channel_sequencer_test(dut):
     yield dut.clear.eq(1)

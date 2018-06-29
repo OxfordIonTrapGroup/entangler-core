@@ -1,5 +1,5 @@
 from migen import *
-from core import *
+from entangler.core import *
 
 patterns = [2, 5, 9]
 n_sig = 4
