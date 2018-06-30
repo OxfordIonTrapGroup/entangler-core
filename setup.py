@@ -4,4 +4,5 @@ setup(
     name='entangler',
     version='0.1',
     packages=find_packages(),
+    requirements=["migen"]
 )
