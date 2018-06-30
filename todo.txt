@@ -1,5 +1,3 @@
-- Finish RTIO interface
-- Integrate
 - Understand phy clock domains
 - Test:
     - Does the core time-out correctly if only master or slave running
