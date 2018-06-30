@@ -44,17 +44,33 @@ class PhyHarness(Module):
         self.comb += self.counter.eq(self.core.core.msm.m)
 
 
+ADDR_CONFIG = 0
+ADDR_RUN = 1
+ADDR_NCYCLES = 2
+ADDR_HERALDS = 3
+ADDR_TIMING = 0b1000
+
 def test(dut):
     def out(addr, data):
         yield from rtio_output_event(dut.core.rtlink, addr, data)
+    def write_heralds(heralds = None):
+        data = 0
+        for i, h in enumerate(heralds):
+            assert i < 4
+            data |= (1<<i) << (4*4)
+            data |= h << (4*i)
+        yield from out(ADDR_HERALDS, data)
+
 
     for _ in range(5):
         yield
-    yield from out(0b00, 0b110)
-    yield from out(0b10, 30)
-    yield from out(0b1000, 10*2**16 + 5)
-    yield from out(0b1000+3, 10*2**16 + 5)
-    for _ in range(5):
+    yield from out(ADDR_CONFIG, 0b110)
+    yield from out(ADDR_NCYCLES, 30)
+    yield from write_heralds([0b1010, 0b0101, 0b0011, 0b1100])
+    for i in range(8):
+        yield from out(ADDR_TIMING+i, (2*i+2)*(1<<16) | 2*i+1)
+    yield from out(ADDR_RUN, 100)
+    for _ in range(150):
         yield
 
 
