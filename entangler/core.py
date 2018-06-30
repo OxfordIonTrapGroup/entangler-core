@@ -175,9 +175,9 @@ class MainStateMachine(Module):
 
         fsm.act("IDLE",
             If(self.is_master,
-                If(~done & self.ready & (self.slave_ready | self.standalone), NextState("TRIGGER_SLAVE"))
+                If(~finishing & self.ready & (self.slave_ready | self.standalone), NextState("TRIGGER_SLAVE"))
             ).Else(
-                If(~done & self.ready & self.trigger_in, NextState("COUNTER"))
+                If(~finishing & self.ready & self.trigger_in, NextState("COUNTER"))
             ),
             NextValue(self.m, 0),
             self.trigger_out.eq(0)
