@@ -64,13 +64,13 @@ def test(dut):
 
     for _ in range(5):
         yield
-    yield from out(ADDR_CONFIG, 0b110)
     yield from out(ADDR_NCYCLES, 30)
     yield from write_heralds([0b1010, 0b0101, 0b0011, 0b1100])
     for i in range(8):
         yield from out(ADDR_TIMING+i, (2*i+2)*(1<<16) | 2*i+1)
-    yield from out(ADDR_RUN, 100)
-    for _ in range(150):
+    yield from out(ADDR_CONFIG, 0b111) # Enable standalone
+    yield from out(ADDR_RUN, int(2e3/8))
+    for _ in range(300):
         yield
 
 

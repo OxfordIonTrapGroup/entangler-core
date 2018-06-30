@@ -154,13 +154,18 @@ class MainStateMachine(Module):
         self.sync += If(~self.timeout, self.time_remaining.eq(self.time_remaining-1))
 
         done = Signal()
-        self.comb += done.eq(self.timeout | self.success)
+        done_d = Signal()
+        finishing = Signal()
+        self.comb += finishing.eq(self.timeout | self.success)
+        # Done asserted at the at the end of the successful / timedout cycle
+        self.comb += done.eq(finishing & self.cycle_starting)
+        self.comb += self.done_stb.eq(done & ~done_d)
 
         # Ready asserted when run_stb is pulsed, and cleared on success or timeout
         self.sync += [
-            self.done_stb.eq(0),
             If(self.run_stb, self.ready.eq(1), self.cycles_completed.eq(0), self.success.eq(0)),
-            If(done, self.ready.eq(0), self.done_stb.eq(1))
+            done_d.eq(done),
+            If(finishing, self.ready.eq(0))
         ]
 
         self.comb += self.cycle_starting.eq(self.m==0)

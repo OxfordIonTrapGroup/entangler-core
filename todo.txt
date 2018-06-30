@@ -21,13 +21,14 @@ Input timestamp resolution is 1ns
 Max cycle length is ~10us
 So lets use 14 bits per timestamp (16.38us max)
 
-
+Core should only be enabled after sensible values are loaded into the registers.
+E.g. if n_cycles=0 when the core is enabled it will saturate the ififo with timeout events...
 
 
 Registers:
 0b0000 : Config : w:
     from low to high bits [enable, is_master, standalone]
-    set if master or slave, set if outputs enabled (i.e. un-tris master / slave outputs, override output phys)
+    set if master or slave, set if core enabled (i.e. un-tris master / slave outputs, override output phys)
 0b0001 : Run : w: trigger sequence on write, set max time to run for
 0b0010 : Cycle length: w:
 0b0011 : Heralds: w: 4x 4 bit heralds, then 4 bits of herald enable flags (to allow working with fewer heralds) -> 20 bits

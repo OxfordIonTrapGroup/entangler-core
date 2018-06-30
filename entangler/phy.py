@@ -114,9 +114,9 @@ class Entangler(Module):
         # If the core is finished output the herald match or 0x3fff on timeout
         # We expect to never get a read request and a core finished event at the same time
         self.comb += [
-                self.rtlink.i.stb.eq(read | self.core.msm.done_stb),
+                self.rtlink.i.stb.eq(read | (self.core.enable & self.core.msm.done_stb)),
                 self.rtlink.i.data.eq(
-                    Mux(self.core.msm.done_stb, Mux(self.core.msm.success,self.core.heralder.matches, 0x3fff),
+                    Mux(self.core.enable & self.core.msm.done_stb, Mux(self.core.msm.success,self.core.heralder.matches, 0x3fff),
                         Mux(read_timings,
                             timing_data,
                             status if read_addr==0 else n_cycles)))
