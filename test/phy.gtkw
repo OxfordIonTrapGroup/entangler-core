@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.71 (w)1999-2016 BSI
-[*] Sat Jun 30 10:23:29 2018
+[*] Sat Jun 30 12:21:06 2018
 [*]
 [dumpfile] "C:\scratch\entangler-core\test\phy.vcd"
-[dumpfile_mtime] "Sat Jun 30 10:22:02 2018"
-[dumpfile_size] 96876
+[dumpfile_mtime] "Sat Jun 30 12:20:42 2018"
+[dumpfile_size] 93106
 [savefile] "C:\scratch\entangler-core\test\phy.gtkw"
-[timestart] 0
+[timestart] 3043
 [size] 1680 1028
 [pos] -1 -1
-*-9.084837 2044 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-6.539742 1900 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [sst_width] 356
 [signals_width] 338
 [sst_expanded] 1
@@ -59,21 +59,38 @@ channelsequencer2_output
 channelsequencer3_output
 @200
 -
+@22
+heralder_matches[3:0]
+@28
+inputgater0_triggered
+inputgater1_triggered
+inputgater2_triggered
+inputgater3_triggered
+heralder_matches[3:0]
+@200
+-
 @28
 enable
 @22
 msm_m[9:0]
 @28
 msm_cycle_starting
-@29
 msm_success
-@28
 msm_timeout
 msm_run_stb
 msm_done_stb
 @200
 -
+@23
+inputgater0_ref_ts[13:0]
 @22
+inputgater0_sig_ts[13:0]
+inputgater1_sig_ts[13:0]
+inputgater2_sig_ts[13:0]
+inputgater3_sig_ts[13:0]
+@200
+-
+@24
 iinterface_data[13:0]
 @28
 iinterface_stb

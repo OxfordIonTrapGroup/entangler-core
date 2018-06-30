@@ -95,7 +95,7 @@ class InputGater(Module):
         ]
 
         self.sync += [
-            If(phy_sig.stb_rising & ~self.triggered,
+            If(phy_sig.stb_rising & ~self.triggered & triggering,
                 self.triggered.eq(triggering),
                 self.sig_ts.eq(t_sig)
             )
