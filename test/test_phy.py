@@ -68,21 +68,30 @@ def test(dut):
     for _ in range(5):
         yield
     yield from out(ADDR_NCYCLES, 30)
-    yield from write_heralds([0b0101, 0b0011, 0b1010, 0b1100])
+    yield from write_heralds([0b0101, 0b1010, 0b1100, 0b0101])
     for i in range(4):
         yield from out(ADDR_TIMING+i, (2*i+2)*(1<<16) | 2*i+1)
     for i in [0,2]:
         yield from out(ADDR_TIMING+4+i, (30<<16) | 18)
+    for i in [1,3]:
+        yield from out(ADDR_TIMING+4+i, (1000<<16) | 1000)
     yield from out(ADDR_CONFIG, 0b111) # Enable standalone
     yield from out(ADDR_RUN, int(2e3/8))
 
-    for i in range(300):
+    for i in range(400):
         if i==200:
             yield dut.phy_ref.t_event.eq( 8*10+3 )
             yield dut.phy_1.t_event.eq( 8*10+3 + 18)
             yield dut.phy_2.t_event.eq( 8*10+3 + 30)
         yield
 
+    yield from out(0b10001, 0) # Read n_cycles
+    yield
+    for i in range(5):
+        yield from out(0b11000+i, 0) # Read input timestamps
+        yield
+    for _ in range(5):
+        yield
 
 if __name__ == "__main__":
     dut = PhyHarness()

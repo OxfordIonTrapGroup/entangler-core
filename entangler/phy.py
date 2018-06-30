@@ -32,7 +32,7 @@ class Entangler(Module):
         write_timings = Signal()
         self.comb += [
             self.rtlink.o.busy.eq(0),
-            write_timings.eq(self.rtlink.o.address[3:4] == 1),
+            write_timings.eq(self.rtlink.o.address[3:5] == 1),
         ]
 
         output_t_starts = [seq.m_start for seq in self.core.sequencers]
@@ -78,7 +78,7 @@ class Entangler(Module):
 
         read = Signal()
         read_timings = Signal()
-        read_addr = Signal()
+        read_addr = Signal(3)
 
         # Input timestamps are [ref, apd1_1, apd1_2, apd2_1, apd2_2]
         input_timestamps = [self.core.apd_gaters[0][0].ref_ts]
@@ -88,8 +88,8 @@ class Entangler(Module):
         cases = {}
         timing_data = Signal(14)
         for i, ts in enumerate(input_timestamps):
-            cases[i] = [timing_data.eq(input_timestamps[i])]
-
+            cases[i] = [timing_data.eq(ts)]
+        self.comb += Case(read_addr, cases)
 
 
         self.sync.rio += [
@@ -98,8 +98,8 @@ class Entangler(Module):
                 ),
                 If(self.rtlink.o.stb,
                     read.eq(read_en),
-                    read_timings.eq(self.rtlink.o.address[4:3] == 3),
-                    read_addr.eq(self.rtlink.o.address[2:]),
+                    read_timings.eq(self.rtlink.o.address[3:5] == 0b11),
+                    read_addr.eq(self.rtlink.o.address[:3]),
                 )
         ]
 
