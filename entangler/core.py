@@ -240,7 +240,7 @@ class EntanglerCore(Module):
                 sequencer_sig = self.sequencers[i].output
                 pad = output_pads[i]
                 self.specials += Instance("OBUFDS",
-                              i_I=sequencer_sig if self.enable else output_sigs[i],
+                              i_I=Mux(self.enable, sequencer_sig, output_sigs[i]),
                               o_O=pad.p, o_OB=pad.n)
 
 
