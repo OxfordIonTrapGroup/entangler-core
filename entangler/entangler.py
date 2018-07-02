@@ -4,19 +4,28 @@ from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 # Write only
 ADDR_W_CONFIG = 0
-ADDR_W_ENABLE = 1
-ADDR_W_DURATION = 2
-ADDR_W_T_CYCLE = 3
-ADDR_W_HERALD = 4
+ADDR_W_RUN = 1
+ADDR_W_T_CYCLE = 2
+ADDR_W_HERALD = 3
+
+# Output channel addresses
+out_1092 = 0b1000+0
+out_422sigma = 0b1000+1
+out_422pulsed_trigger = 0b1000+2
+out_misc = 0b1000+3
+gate_apd1_a = 0b1000+4
+gate_apd1_b = 0b1000+5
+gate_apd2_a = 0b1000+6
+gate_apd2_b = 0b1000+7
 
 # Read only
-ADDR_R_STATUS = 5
-ADDR_R_NCYCLES = 6
-TS_422PULSE = 7
-TS_APD1E = 8
-TS_APD1L = 9
-TS_APD2E = 10
-TS_APD2L = 11
+ADDR_R_STATUS = 0b10000
+ADDR_R_NCYCLES = 0b10000+1
+ts_422PULSE = 0b11000+0
+ts_APD1A = 0b11000+1
+ts_APD1B = 0b11000+2
+ts_APD2A = 0b11000+3
+ts_APD2B = 0b11000+4
 
 
 class Entangler:
@@ -33,13 +42,9 @@ class Entangler:
         self.ref_period_mu = self.core.seconds_to_mu(
             self.core.coarse_ref_period)
 
-    def _seconds_to_coarse_mu(self, t):
-        t_mu = self.core.seconds_to_mu(t)
-        return t_mu >> 3
-
     @kernel
     def init(self):
-        self.write(ADDR_ISMASTER, self.is_master)
+        self.set_config() # Write is_master
 
     @kernel
     def write(self, addr, value):
@@ -65,17 +70,45 @@ class Entangler:
         return rtio_input_data(self.channel)
 
     @kernel
-    def set_config(self, enable):
+    def set_config(self, enable=False, standalone=False):
         """
+        Configure the core:
+        enable: allow core to drive outputs (otherwise they are connected to
+            normal TTLOut phys). Do not enable if the cycle length and timing
+            parameters are not set.
+        standalone: don't attempt syncronisation with partner, just run when
+            ready. Used for testing and single-trap mode
         """
-        self.write(CONFIG_ADDR, enable)
+        data = 0
+        if enable:
+            data |= 1
+        if self.is_master or standalone:
+            data |= 1<<1
+        if standalone:
+            data |= 1<<2
+        self.write(ADDR_W_CONFIG, data)
 
     @kernel
-    def set_timing(self, channel, t_start, t_stop=0):
-        # Round start and stop to the coarse clock
-        n_start = self._seconds_to_coarse_mu(t_start) & 0x3fff
-        n_stop = self._seconds_to_coarse_mu(t_stop) & 0x3fff
-        self.write(channel, n_start | (n_stop>>16))
+    def set_timing(self, channel, t_start, t_stop):
+        """Set the output channel timing and relative gate times.
+        
+        Times are in seconds.
+        For output channels the timing resolution is the coarse clock (8ns), and
+        the times are relative to the start of the entanglement cycle.
+        For gate channels the time is relative to the reference pulse (422
+        pulse input) and has fine timing resolultion (1ns)
+        """
+        mu_start = self.core.seconds_to_mu(t_start)
+        mu_stop = self.core.seconds_to_mu(t_stop)
+
+        if channel < gate_apd1_a:
+            mu_start = mu_start >> 3
+            mu_stop = mu_stop >> 3
+
+        # Truncate to 14 bits
+        mu_start &= 0x3fff
+        mu_stop &= 0x3fff
+        self.write(channel, (mu_stop<<16) | mu_start)
 
     @kernel
     def set_cycle_length(self, t_cycle):

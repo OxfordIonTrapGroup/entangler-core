@@ -31,7 +31,7 @@ Registers:
 0b0010 : Cycle length: w:
 0b0011 : Heralds: w: 4x 4 bit heralds, then 4 bits of herald enable flags (to allow working with fewer heralds) -> 20 bits
 
-Timing registers: 3x outputs, 4x gating inputs
+Timing registers: 4x outputs, 4x gating inputs
 Each has 14 bits t_start, 14 bits t_end -> 32 bits (to align top to dword)
 0b1_000 ... 0b1_110
 
