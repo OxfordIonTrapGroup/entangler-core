@@ -29,8 +29,7 @@ ts_APD2B = 0b11000+4
 
 
 class Entangler:
-    """
-    Sequences remote entanglement experiments between a master and a slave
+    """Sequences remote entanglement experiments between a master and a slave
 
     :param channel: RTIO channel number
     :param is_master: Is this Kasli the sequencer master or the slave
@@ -71,8 +70,8 @@ class Entangler:
 
     @kernel
     def set_config(self, enable=False, standalone=False):
-        """
-        Configure the core:
+        """Configure the core
+
         enable: allow core to drive outputs (otherwise they are connected to
             normal TTLOut phys). Do not enable if the cycle length and timing
             parameters are not set.
@@ -116,26 +115,39 @@ class Entangler:
 
         If the herald module does not signal success by this time the loop
         repeats. Resolution is coarse_ref_period."""
-        self.write(self.ADDR_T_CYCLE, self._seconds_to_coarse_mu(t_cycle))
+        mu_cycle = self.core.seconds_to_mu(t_cycle)
+        mu_cycle = mu_cycle >> 3
+        self.write(self.ADDR_T_CYCLE, mu_cycle)
 
     @kernel
     def set_heralds(self, *heralds):
         """Set the count patterns that cause the entangler loop to exit
-        Up to 4 patterns can be set."""
+
+        Up to 4 patterns can be set.
+        Each pattern is a 4 bit number, with the order (LSB first)
+        apd1_a, apd1_b, apd2_a, apd2_b.
+        E.g. to set a herald on apd1_a only: set_heralds(0b0001)
+        to herald on apd1_b, apd2_b: set_heralds(0b1010)
+        To herald on both: set_heralds(0b0001, 0b1010)
+        """
         data = 0
-        for i in range(min(4,len(heralds))):
-            data |= ((1<<5) | (heralds[i] & 0xf)) << (5*i)
+        assert len(heralds) <= 4
+        for i in range(len(heralds)):
+            data |= (heralds[i] & 0xf) << (4*i)
+            data |= 1<<(16+i)
         self.write(self.ADDR_W_HERALD, data)
 
     @kernel
     def run(self, duration):
-        """Run the entanglement sequence until success, or duration has elapsed.
+        """Run the entanglement sequence until success, or duration (in seconds)
+        has elapsed. Blocking.
 
-        Returns -1 if there was a timeout, or the herald pattern if there was
-        a success (herald pattern match).
+        Returns 0x3fff if there was a timeout, or a bitfield giving the herald matches if there was
+        a success.
         """
-
-        rtio_output(now_mu(), self.channel, ADDR_DURATION, self.core.seconds_to_mu(duration))
+        mu_duration = self.core.seconds_to_mu(duration)
+        mu_duration = mu_duration >> 3
+        rtio_output(now_mu(), self.channel, ADDR_W_RUN, mu_duration)
         return rtio_input_data(self.channel)
 
     @kernel
@@ -144,12 +156,15 @@ class Entangler:
 
     @kernel
     def get_ncycles(self):
-        """Get the number of cycles the core has currently run for.
-        Reset when ???
+        """Get the number of cycles the core has completed since the last call to run()
         """
         return self.read(ADDR_R_NCYCLES)
 
     @kernel
-    def get_timestamp(self, index):
-        """Get the timestamp given by index"""
-        return self.read(index)
+    def get_timestamp_mu(self, channel):
+        """Get the input timestamp for a channel
+
+        The timestamp is the time offset, in mu, from the start of the cycle to
+        the detected rising edge.
+        """
+        return self.read(channel)
