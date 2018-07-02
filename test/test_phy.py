@@ -78,11 +78,11 @@ def test(dut):
     yield from out(ADDR_CONFIG, 0b111) # Enable standalone
     yield from out(ADDR_RUN, int(2e3/8))
 
-    for i in range(400):
-        if i==200:
-            yield dut.phy_ref.t_event.eq( 8*10+3 )
-            yield dut.phy_1.t_event.eq( 8*10+3 + 18)
-            yield dut.phy_2.t_event.eq( 8*10+3 + 30)
+    for i in range(700):
+        # if i==200:
+        #     yield dut.phy_ref.t_event.eq( 8*10+3 )
+        #     yield dut.phy_1.t_event.eq( 8*10+3 + 18)
+        #     yield dut.phy_2.t_event.eq( 8*10+3 + 30)
         yield
 
     yield from out(0b10000, 0) # Read status

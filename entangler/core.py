@@ -152,10 +152,13 @@ class MainStateMachine(Module):
         # # #
 
         self.comb += self.timeout.eq(self.time_remaining == 0)
-        self.sync += If(self.run_stb,
-                        self.time_remaining.eq(self.time_remaining_buf),
-                        If(~self.timeout,
-                            self.time_remaining.eq(self.time_remaining-1)))
+        self.sync += [
+            If(self.run_stb,
+                self.time_remaining.eq(self.time_remaining_buf)
+            ).Else(
+                If(~self.timeout,
+                    self.time_remaining.eq(self.time_remaining-1)))
+        ]
 
         done = Signal()
         done_d = Signal()
