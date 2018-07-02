@@ -5,7 +5,7 @@ from artiq.coredevice.rtio import rtio_output, rtio_input_data
 # Write only
 ADDR_W_CONFIG = 0
 ADDR_W_RUN = 1
-ADDR_W_T_CYCLE = 2
+ADDR_W_TCYCLE = 2
 ADDR_W_HERALD = 3
 
 # Output channel addresses
@@ -117,7 +117,7 @@ class Entangler:
         repeats. Resolution is coarse_ref_period."""
         mu_cycle = self.core.seconds_to_mu(t_cycle)
         mu_cycle = mu_cycle >> 3
-        self.write(self.ADDR_T_CYCLE, mu_cycle)
+        self.write(ADDR_W_TCYCLE, mu_cycle)
 
     @kernel
     def set_heralds(self, *heralds):
@@ -135,7 +135,7 @@ class Entangler:
         for i in range(len(heralds)):
             data |= (heralds[i] & 0xf) << (4*i)
             data |= 1<<(16+i)
-        self.write(self.ADDR_W_HERALD, data)
+        self.write(ADDR_W_HERALD, data)
 
     @kernel
     def run(self, duration):
