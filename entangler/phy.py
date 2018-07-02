@@ -105,7 +105,7 @@ class Entangler(Module):
         ]
 
         n_cycles = self.core.msm.cycles_completed 
-        status = Signal(2)
+        status = Signal(3)
         self.comb += status.eq(Cat(self.core.msm.ready,
                                    self.core.msm.success,
                                    self.core.msm.timeout))
@@ -120,5 +120,5 @@ class Entangler(Module):
                     Mux(self.core.enable & self.core.msm.done_stb, Mux(self.core.msm.success,self.core.heralder.matches, 0x3fff),
                         Mux(read_timings,
                             timing_data,
-                            status if read_addr==0 else n_cycles)))
+                            Mux(read_addr!=0, n_cycles, status))))
         ]

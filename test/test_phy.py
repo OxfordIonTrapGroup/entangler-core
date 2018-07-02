@@ -85,6 +85,8 @@ def test(dut):
             yield dut.phy_2.t_event.eq( 8*10+3 + 30)
         yield
 
+    yield from out(0b10000, 0) # Read status
+    yield
     yield from out(0b10001, 0) # Read n_cycles
     yield
     for i in range(5):
