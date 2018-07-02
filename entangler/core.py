@@ -122,6 +122,7 @@ class MainStateMachine(Module):
     def __init__(self, counter_width=10):
         self.m = Signal(counter_width)
         self.time_remaining = Signal(32) # Clock cycles remaining before timeout
+        self.time_remaining_buf = Signal(32)
         self.cycles_completed = Signal(14) # How many iterations of the loop have completed since last start
 
         self.run_stb = Signal() # Pulsed to start core running until timeout or success
@@ -151,7 +152,10 @@ class MainStateMachine(Module):
         # # #
 
         self.comb += self.timeout.eq(self.time_remaining == 0)
-        self.sync += If(~self.timeout, self.time_remaining.eq(self.time_remaining-1))
+        self.sync += If(self.run_stb,
+                        self.time_remaining.eq(time_remaining_buf),
+                        If(~self.timeout,
+                            self.time_remaining.eq(self.time_remaining-1)))
 
         done = Signal()
         done_d = Signal()

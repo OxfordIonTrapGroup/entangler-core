@@ -61,7 +61,7 @@ class Entangler(Module):
                 ),
             If( (self.rtlink.o.address==1) & self.rtlink.o.stb,
                     # Write timeout counter and start core running
-                    self.core.msm.time_remaining.eq(self.rtlink.o.data),
+                    self.core.msm.time_remaining_buf.eq(self.rtlink.o.data),
                     self.core.msm.run_stb.eq(1)
                 ),
             If( (self.rtlink.o.address==2) & self.rtlink.o.stb,
