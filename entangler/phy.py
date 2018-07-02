@@ -25,8 +25,9 @@ class Entangler(Module):
 
         # # #
 
-        self.submodules.core = EntanglerCore(if_pads, output_pads, output_sigs,
-                        input_phys, simulate=simulate)
+        self.submodules.core = ClockDomainsRenamer("rio")(
+                    EntanglerCore(if_pads, output_pads, output_sigs,
+                        input_phys, simulate=simulate))
 
         read_en = self.rtlink.o.address[4]
         write_timings = Signal()
