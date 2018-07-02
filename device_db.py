@@ -12,12 +12,13 @@ def create_entangler(channel_offset=0, is_master=False):
         2: "_422pulsed_trigger",
         3: "ttl_entangler",
         # Inputs
-        4: "apd_1",
-        5: "apd_2",
-        6: "_422pulsed_input"
+        4: "_422pulsed_input",
+        5: "apd_1",
+        6: "apd_2",
+        7: "ttl_in_misc"
     }
 
-    for i in range(7):
+    for i in range(8):
         if i in names:
             name = names[i]
         else:
@@ -31,8 +32,8 @@ def create_entangler(channel_offset=0, is_master=False):
 
     d["entangler"] = {
         "type": "local",
-        "module": "artiq.coredevice.entangler",
+        "module": "entangler.entangler",
         "class": "Entangler",
-        "arguments": {"channel": channel_offset+7, "is_master": is_master},
+        "arguments": {"channel": channel_offset+8, "is_master": is_master},
     }
     return d
