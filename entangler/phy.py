@@ -48,6 +48,8 @@ class Entangler(Module):
             cases[i] = [output_t_starts[i].eq(self.rtlink.o.data[:16]),
                         output_t_ends[i].eq(self.rtlink.o.data[16:])]
 
+        self.comb += self.core.msm.time_remaining_buf.eq(self.rtlink.o.data)
+
         self.sync.rio += [
             self.core.msm.run_stb.eq(0),
             If(write_timings & self.rtlink.o.stb,
@@ -61,7 +63,6 @@ class Entangler(Module):
                 ),
             If( (self.rtlink.o.address==1) & self.rtlink.o.stb,
                     # Write timeout counter and start core running
-                    self.core.msm.time_remaining_buf.eq(self.rtlink.o.data),
                     self.core.msm.run_stb.eq(1)
                 ),
             If( (self.rtlink.o.address==2) & self.rtlink.o.stb,

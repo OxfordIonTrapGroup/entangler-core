@@ -160,7 +160,7 @@ class MainStateMachine(Module):
         done = Signal()
         done_d = Signal()
         finishing = Signal()
-        self.comb += finishing.eq(self.timeout | self.success)
+        self.comb += finishing.eq( (self.timeout&~self.run_stb) | self.success)
         # Done asserted at the at the end of the successful / timedout cycle
         self.comb += done.eq(finishing & self.cycle_starting)
         self.comb += self.done_stb.eq(done & ~done_d)
