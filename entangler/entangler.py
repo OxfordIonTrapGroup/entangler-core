@@ -1,11 +1,12 @@
 from artiq.language.core import kernel, delay, now_mu, delay_mu, portable
 from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
+import numpy as np
 
 # Write only
 ADDR_W_CONFIG = 0
 ADDR_W_RUN = 1
-ADDR_W_T_CYCLE = 2
+ADDR_W_TCYCLE = 2
 ADDR_W_HERALD = 3
 
 # Output channel addresses
@@ -37,6 +38,7 @@ class Entangler:
     """
     def __init__(self, dmgr, channel, is_master=True, core_device="core"):
         self.core = dmgr.get(core_device)
+        self.channel = channel
         self.is_master = is_master
         self.ref_period_mu = self.core.seconds_to_mu(
             self.core.coarse_ref_period)
@@ -97,8 +99,8 @@ class Entangler:
         For gate channels the time is relative to the reference pulse (422
         pulse input) and has fine timing resolultion (1ns)
         """
-        mu_start = self.core.seconds_to_mu(t_start)
-        mu_stop = self.core.seconds_to_mu(t_stop)
+        mu_start = np.int32(self.core.seconds_to_mu(t_start))
+        mu_stop = np.int32(self.core.seconds_to_mu(t_stop))
 
         if channel < gate_apd1_a:
             mu_start = mu_start >> 3
@@ -115,9 +117,9 @@ class Entangler:
 
         If the herald module does not signal success by this time the loop
         repeats. Resolution is coarse_ref_period."""
-        mu_cycle = self.core.seconds_to_mu(t_cycle)
+        mu_cycle = np.int32(self.core.seconds_to_mu(t_cycle))
         mu_cycle = mu_cycle >> 3
-        self.write(self.ADDR_T_CYCLE, mu_cycle)
+        self.write(ADDR_W_TCYCLE, mu_cycle)
 
     @kernel
     def set_heralds(self, *heralds):
@@ -135,7 +137,7 @@ class Entangler:
         for i in range(len(heralds)):
             data |= (heralds[i] & 0xf) << (4*i)
             data |= 1<<(16+i)
-        self.write(self.ADDR_W_HERALD, data)
+        self.write(ADDR_W_HERALD, data)
 
     @kernel
     def run(self, duration):
@@ -145,7 +147,7 @@ class Entangler:
         Returns 0x3fff if there was a timeout, or a bitfield giving the herald matches if there was
         a success.
         """
-        mu_duration = self.core.seconds_to_mu(duration)
+        mu_duration = np.int32(self.core.seconds_to_mu(duration))
         mu_duration = mu_duration >> 3
         rtio_output(now_mu(), self.channel, ADDR_W_RUN, mu_duration)
         return rtio_input_data(self.channel)

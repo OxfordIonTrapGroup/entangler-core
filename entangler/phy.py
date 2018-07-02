@@ -5,7 +5,7 @@ from entangler.core import EntanglerCore
 
 
 class Entangler(Module):
-    def __init__(self, if_pads, output_pads, output_sigs, input_phys, simulate=True):
+    def __init__(self, if_pads, output_pads, output_sigs, input_phys, simulate=False):
         """
         if_pads: EEM pads for inter-Kasli link
         output_pads: pads for 4 output signals
