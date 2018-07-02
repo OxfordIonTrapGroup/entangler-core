@@ -259,13 +259,13 @@ class EntanglerCore(Module):
                     io_IO=pad.p, io_IOB=pad.n)
 
             # Interface between master and slave core
-            ts_buf(output_pads[0],
+            ts_buf(if_pads[0],
                 self.msm.ready, self.msm.slave_ready,
                 ~self.msm.is_master & ~self.msm.standalone)
-            ts_buf(output_pads[1],
+            ts_buf(if_pads[1],
                 self.msm.trigger_out, self.msm.trigger_in,
                 self.msm.is_master & ~self.msm.standalone)
-            ts_buf(output_pads[2],
+            ts_buf(if_pads[2],
                 self.msm.success, self.msm.success_in,
                 self.msm.is_master & ~self.msm.standalone)
 
