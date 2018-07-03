@@ -22,6 +22,7 @@ gate_apd2_b = 0b1000+7
 # Read only
 ADDR_R_STATUS = 0b10000
 ADDR_R_NCYCLES = 0b10000+1
+ADDR_R_TIMEREMAINING = 0b10000+2
 ts_422PULSE = 0b11000+0
 ts_APD1A = 0b11000+1
 ts_APD1B = 0b11000+2
@@ -161,6 +162,13 @@ class Entangler:
         """Get the number of cycles the core has completed since the last call to run()
         """
         return self.read(ADDR_R_NCYCLES)
+
+    @kernel
+    def get_time_remaining(self):
+        """Get the number of remaining number of clock cycles the core will
+        run for before timing out
+        """
+        return self.read(ADDR_R_TIMEREMAINING)
 
     @kernel
     def get_timestamp_mu(self, channel):
