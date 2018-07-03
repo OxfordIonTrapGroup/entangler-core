@@ -105,11 +105,17 @@ class Entangler(Module):
                 )
         ]
 
-        n_cycles = self.core.msm.cycles_completed 
         status = Signal(3)
         self.comb += status.eq(Cat(self.core.msm.ready,
                                    self.core.msm.success,
                                    self.core.msm.timeout))
+
+        reg_read = Signal(14)
+        cases = {}
+        cases[0] = [reg_read.eq(status)]
+        cases[1] = [reg_read.eq(self.core.msm.cycles_completed)]
+        cases[2] = [reg_read.eq(self.core.msm.time_remaining)]
+        self.comb += Case(read_addr, cases)
 
         # Generate an input event if we have a read request RTIO Output event, 
         # Or if the core has finished.
@@ -121,5 +127,7 @@ class Entangler(Module):
                     Mux(self.core.enable & self.core.msm.done_stb, Mux(self.core.msm.success,self.core.heralder.matches, 0x3fff),
                         Mux(read_timings,
                             timing_data,
-                            Mux(read_addr!=0, n_cycles, status))))
+                            reg_read)
+                        )
+                    )
         ]

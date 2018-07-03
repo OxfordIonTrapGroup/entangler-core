@@ -78,7 +78,7 @@ def test(dut):
     yield from out(ADDR_CONFIG, 0b111) # Enable standalone
     yield from out(ADDR_RUN, int(2e3/8))
 
-    for i in range(700):
+    for i in range(100):
         # if i==200:
         #     yield dut.phy_ref.t_event.eq( 8*10+3 )
         #     yield dut.phy_1.t_event.eq( 8*10+3 + 18)
@@ -87,7 +87,9 @@ def test(dut):
 
     yield from out(0b10000, 0) # Read status
     yield
-    yield from out(0b10001, 0) # Read n_cycles
+    yield from out(0b10000+1, 0) # Read n_cycles
+    yield
+    yield from out(0b10000+2, 0) # Read time elapsed
     yield
     for i in range(5):
         yield from out(0b11000+i, 0) # Read input timestamps
