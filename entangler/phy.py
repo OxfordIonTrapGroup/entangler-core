@@ -20,7 +20,7 @@ class Entangler(Module):
                 enable_replace=False),
             rtlink.IInterface(
                 data_width=14,
-                timestamped=False)
+                timestamped=True)
             )
 
         # # #
