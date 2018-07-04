@@ -50,7 +50,7 @@ ADDR_NCYCLES = 2
 ADDR_HERALDS = 3
 ADDR_TIMING = 0b1000
 
-def test(dut):
+def test_basic(dut):
     def out(addr, data):
         yield from rtio_output_event(dut.core.rtlink, addr, data)
     def write_heralds(heralds = None):
@@ -98,6 +98,41 @@ def test(dut):
     for _ in range(5):
         yield
 
+
+def test_timeout(dut):
+    """Test that timeout works as the timeout is swept to occur at all possible
+    points in the state machine operation"""
+
+    def out(addr, data):
+        yield from rtio_output_event(dut.core.rtlink, addr, data)
+
+    def do_timeout(timeout, n_cycles = 10):
+        yield
+        yield from out(ADDR_CONFIG, 0b110) # disable, standalone
+        yield from out(ADDR_NCYCLES, n_cycles)
+        yield from out(ADDR_CONFIG, 0b111) # Enable standalone
+        yield from out(ADDR_RUN, timeout)
+
+        timedout=False
+        for i in range(timeout+n_cycles+50):
+            if (yield dut.core.rtlink.i.stb):
+                data = (yield dut.core.rtlink.i.data)
+                if data==0x3fff:
+                    # This should be the first and only timeout
+                    assert not timedout
+                    # Timeout should happen in a timely fashion
+                    assert i <= timeout+n_cycles+5
+                    timedout=True
+            yield
+        assert timedout
+
+    for i in range(1,20):
+        yield from do_timeout(i,n_cycles=10)
+
+
 if __name__ == "__main__":
     dut = PhyHarness()
-    run_simulation(dut, test(dut), vcd_name="phy.vcd",  clocks={"sys": 8, "rio":8})
+    run_simulation(dut, test_basic(dut), vcd_name="phy.vcd",  clocks={"sys": 8, "rio":8})
+
+    dut = PhyHarness()
+    run_simulation(dut, test_timeout(dut), vcd_name="phy_timeout.vcd",  clocks={"sys": 8, "rio":8})

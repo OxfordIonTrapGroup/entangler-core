@@ -175,12 +175,13 @@ class MainStateMachine(Module):
             If(finishing, self.ready.eq(0))
         ]
 
-        self.comb += self.cycle_starting.eq(self.m==0)
-
         fsm = FSM()
         self.submodules += fsm
 
+        # self.comb += self.cycle_starting.eq(self.m==0)
+
         fsm.act("IDLE",
+            self.cycle_starting.eq(1),
             If(self.is_master,
                 If(~finishing & self.ready & (self.slave_ready | self.standalone), NextState("TRIGGER_SLAVE"))
             ).Else(
