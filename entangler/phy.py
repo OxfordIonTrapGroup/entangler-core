@@ -56,7 +56,6 @@ class Entangler(Module):
         ]
 
         self.sync.rio += [
-            self.core.msm.run_stb.eq(0),
             If(write_timings & self.rtlink.o.stb,
                     Case(self.rtlink.o.address[:3], cases)
                 ),
