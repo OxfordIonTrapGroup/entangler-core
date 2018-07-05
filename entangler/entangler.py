@@ -1,6 +1,6 @@
 from artiq.language.core import kernel, delay, now_mu, delay_mu, portable
 from artiq.language.units import us, ns
-from artiq.coredevice.rtio import rtio_output, rtio_input_data
+from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp_data
 import numpy as np
 
 # Write only
@@ -154,13 +154,15 @@ class Entangler:
         """Run the entanglement sequence until success, or duration (in seconds)
         has elapsed. Blocking.
 
-        Returns 0x3fff if there was a timeout, or a bitfield giving the herald matches if there was
-        a success.
+        Returns a tuple of [timestamp, reason]
+        timestamp is the RTIO time at the end of the final cycle.
+        reason is 0x3fff if there was a timeout, or a bitfield giving the
+        herald matches if there was a success.
         """
         mu_duration = np.int32(self.core.seconds_to_mu(duration))
         mu_duration = mu_duration >> 3
         rtio_output(now_mu(), self.channel, ADDR_W_RUN, mu_duration)
-        return rtio_input_data(self.channel)
+        return rtio_input_timestamp_data(self.channel)
 
     @kernel
     def get_status(self):
