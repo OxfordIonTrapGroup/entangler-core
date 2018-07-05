@@ -132,7 +132,7 @@ class Entangler:
         self.write(ADDR_W_TCYCLE, mu_cycle)
 
     @kernel
-    def set_heralds(self, *heralds):
+    def set_heralds(self, heralds):
         """Set the count patterns that cause the entangler loop to exit
 
         Up to 4 patterns can be set.
