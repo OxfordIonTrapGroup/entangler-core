@@ -98,7 +98,10 @@ class Entangler:
         For output channels the timing resolution is the coarse clock (8ns), and
         the times are relative to the start of the entanglement cycle.
         For gate channels the time is relative to the reference pulse (422
-        pulse input) and has fine timing resolultion (1ns)
+        pulse input) and has fine timing resolultion (1ns).
+
+        The start / stop times can be between 0 and the cycle length
+        (i.e for a cycle length of 100*8ns, stop can be at most 100*8ns)
         """
         mu_start = np.int32(self.core.seconds_to_mu(t_start))
         mu_stop = np.int32(self.core.seconds_to_mu(t_stop))
@@ -106,6 +109,9 @@ class Entangler:
         if channel < gate_apd1_a:
             mu_start = mu_start >> 3
             mu_stop = mu_stop >> 3
+
+        mu_start += 1
+        mu_stop += 1
 
         # Truncate to 14 bits
         mu_start &= 0x3fff
