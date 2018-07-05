@@ -1,11 +1,10 @@
+- Think through registering of inter-Kasli connections
 - Test:
     - Does the core time-out correctly if only master or slave running
     - Do the master and slave cores agree on the number of cycles
     - Do the cores exit correctly if the herald occurs
     - Does the pulse sequence look sensible on a scope
-    - Are there any clock domain funnies
     - Does the time gating work properly (loop back outputs to inputs and scan across window to test)
-- At the moment the herald only checks there are counts in the right channels, it does not check there are not counts in the other channels
 
 ---
 Stand-alone mode:
