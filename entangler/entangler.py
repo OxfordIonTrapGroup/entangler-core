@@ -100,8 +100,11 @@ class Entangler:
         For gate channels the time is relative to the reference pulse (422
         pulse input) and has fine timing resolultion (1ns).
 
-        The start / stop times can be between 0 and the cycle length
+        The start / stop times can be between 0 and the cycle length.
         (i.e for a cycle length of 100*8ns, stop can be at most 100*8ns)
+        If the stop time is after the cycle length, the pulse stops at the cycle
+        length. If the stop is before the start, the pulse stops at the cycle
+        length. If the start is after the cycle length there is no pulse.
         """
         mu_start = np.int32(self.core.seconds_to_mu(t_start))
         mu_stop = np.int32(self.core.seconds_to_mu(t_stop))
