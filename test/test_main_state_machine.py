@@ -41,18 +41,40 @@ def msm_standalone_test(dut):
     yield dut.m_end.eq(10)
     yield dut.is_master.eq(1)
     yield dut.standalone.eq(1)
-    yield dut.time_remaining.eq(100)
+    yield dut.time_remaining_buf.eq(80)
 
     yield
     yield
-    yield dut.run_stb.eq(1)
-    yield
-    yield dut.run_stb.eq(0)
 
-    for i in range(50):
-        if i == 40:
-            yield dut.herald.eq(1)
+    def run_a_while(allow_success=True):
+        # Run and check we finish when we get a herald (if allow_success) or
+        # that we time out
+        for _ in range(20):
+            yield
+        yield dut.run_stb.eq(1)
         yield
+        yield dut.run_stb.eq(0)
+        finished = False
+        for i in range(100):
+            if i == 40 and allow_success:
+                yield dut.herald.eq(1)
+            if i>40 and (yield dut.done_stb):
+                finished = True
+            yield
+        yield dut.herald.eq(0)
+        assert finished
+        success = yield dut.success
+        assert success == allow_success
+
+    yield from run_a_while()
+
+    # Check core still works with a full reset
+    yield from run_a_while()
+
+    # Check timeout works
+    yield from run_a_while(False)
+
+
 
 def msm_pair_test(dut):
     yield dut.master.m_end.eq(10)
@@ -73,6 +95,9 @@ def msm_pair_test(dut):
         if i == 9:
             yield dut.master.herald.eq(1)
         yield
+
+
+
 
 if __name__ == "__main__":
     dut = MsmPair()
