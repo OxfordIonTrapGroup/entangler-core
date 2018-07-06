@@ -163,7 +163,7 @@ class MainStateMachine(Module):
         done = Signal()
         done_d = Signal()
         finishing = Signal()
-        self.comb += finishing.eq( (self.timeout&~self.run_stb) | self.success)
+        self.comb += finishing.eq( ~self.run_stb & (self.timeout | self.success))
         # Done asserted at the at the end of the successful / timedout cycle
         self.comb += done.eq(finishing & self.cycle_starting)
         self.comb += self.done_stb.eq(done & ~done_d)
@@ -177,8 +177,6 @@ class MainStateMachine(Module):
 
         fsm = FSM()
         self.submodules += fsm
-
-        # self.comb += self.cycle_starting.eq(self.m==0)
 
         fsm.act("IDLE",
             self.cycle_starting.eq(1),
