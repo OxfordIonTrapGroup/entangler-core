@@ -139,10 +139,13 @@ class MainStateMachine(Module):
         self.standalone = Signal() # Asserted with is_master, ignore slave state for single-device testing
 
         self.trigger_out = Signal() # Trigger to slave
-        self.trigger_in = Signal() # Trigger from master
-        self.success_in = Signal()
 
-        self.slave_ready = Signal()
+        # Unregistered inputs from master
+        self.trigger_in_raw = Signal()
+        self.success_in_raw = Signal()
+
+        # Unregistered input from slave
+        self.slave_ready_raw = Signal()
 
         self.m_end = Signal(counter_width) # Number of clock cycles to run main loop for
 
@@ -150,6 +153,15 @@ class MainStateMachine(Module):
         self.cycle_starting = Signal()
 
         # # #
+
+        self.trigger_in = Signal()
+        self.success_in = Signal()
+        self.slave_ready = Signal()
+        self.sync += [
+            self.trigger_in.eq(self.trigger_in_raw),
+            self.success_in.eq(self.success_in_raw),
+            self.slave_ready.eq(self.slave_ready_raw)
+        ]
 
         self.comb += self.timeout.eq(self.time_remaining == 0)
         self.sync += [
@@ -266,13 +278,13 @@ class EntanglerCore(Module):
 
             # Interface between master and slave core
             ts_buf(if_pads[0],
-                self.msm.ready, self.msm.slave_ready,
+                self.msm.ready, self.msm.slave_ready_raw,
                 ~self.msm.is_master & ~self.msm.standalone)
             ts_buf(if_pads[1],
-                self.msm.trigger_out, self.msm.trigger_in,
+                self.msm.trigger_out, self.msm.trigger_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
             ts_buf(if_pads[2],
-                self.msm.success, self.msm.success_in,
+                self.msm.success, self.msm.success_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
 
         # Connect heralder module signal in order

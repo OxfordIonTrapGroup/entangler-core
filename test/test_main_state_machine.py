@@ -31,9 +31,9 @@ class MsmPair(Module):
 
         self.comb += [
             self.master.is_master.eq(1),
-            self.master.slave_ready.eq(self.slave.ready),
-            self.slave.trigger_in.eq(self.master.trigger_out),
-            self.slave.success_in.eq(self.master.success)
+            self.master.slave_ready_raw.eq(self.slave.ready),
+            self.slave.trigger_in_raw.eq(self.master.trigger_out),
+            self.slave.success_in_raw.eq(self.master.success)
         ]
 
 
@@ -121,7 +121,7 @@ def msm_pair_test(dut):
 
         # If success, master and slave should finish at the same time (modulo registering offsets)
         if success:
-            assert t_master_done == t_slave_done-1
+            assert t_master_done == t_slave_done-2
 
     # Start at different times, but sync up and agree on success
     yield from run(t_start_master=10, t_start_slave=20, t_herald=80)
