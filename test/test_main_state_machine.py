@@ -46,7 +46,7 @@ def msm_standalone_test(dut):
     yield
     yield
 
-    def run_a_while(allow_success=True):
+    def run(allow_success=True):
         # Run and check we finish when we get a herald (if allow_success) or
         # that we time out
         for _ in range(20):
@@ -66,13 +66,13 @@ def msm_standalone_test(dut):
         success = yield dut.success
         assert success == allow_success
 
-    yield from run_a_while()
+    yield from run()
 
     # Check core still works with a full reset
-    yield from run_a_while()
+    yield from run()
 
     # Check timeout works
-    yield from run_a_while(False)
+    yield from run(False)
 
 
 
@@ -108,6 +108,11 @@ def msm_pair_test(dut):
             if (yield dut.slave.done_stb):
                 t_slave_done = i
                 success_slave = yield dut.slave.success
+
+            m_master = yield dut.master.m
+            m_slave = yield dut.slave.m
+            if m_master == 1:
+                assert m_master == m_slave
 
             yield
         print(t_master_done, t_slave_done)
