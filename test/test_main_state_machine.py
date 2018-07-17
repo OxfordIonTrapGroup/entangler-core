@@ -33,7 +33,8 @@ class MsmPair(Module):
             self.master.is_master.eq(1),
             self.master.slave_ready_raw.eq(self.slave.ready),
             self.slave.trigger_in_raw.eq(self.master.trigger_out),
-            self.slave.success_in_raw.eq(self.master.success)
+            self.slave.success_in_raw.eq(self.master.success),
+            self.slave.timeout_in_raw.eq(self.master.timeout)
         ]
 
 
@@ -124,14 +125,21 @@ def msm_pair_test(dut):
         # Success only if we expect it
         assert success == (t_herald is not None)
 
-        # If success, master and slave should finish at the same time (modulo registering offsets)
-        if success:
+        # Master and slave should finish at the same time (modulo registering offsets)
+        # on success, this is obvious
+        # without success, when the master times out it should stop the slave - 
+        # this can only occur if the master times out before the slave
+        if success or t_start_slave > t_start_master:
             assert t_master_done == t_slave_done-2
 
     # Start at different times, but sync up and agree on success
     yield from run(t_start_master=10, t_start_slave=20, t_herald=80)
 
-    # Time out without success, starting at different times
+    # Time out without success, slave timing out first
+    # Slave does not run - just starts and times out because master is not running
+    yield from run(t_start_master=60, t_start_slave=10, t_herald=None)
+
+    # Time out without success, master timing out first
     yield from run(t_start_master=10, t_start_slave=60, t_herald=None)
 
 

@@ -127,6 +127,7 @@ class MainStateMachine(Module):
 
         self.run_stb = Signal() # Pulsed to start core running until timeout or success
         self.done_stb = Signal() # Pulsed when core has finished (on timeout or success)
+        self.running = Signal() # Asserted on run_stb, cleared on done_stb
 
         self.timeout = Signal()
         self.success = Signal()
@@ -143,6 +144,7 @@ class MainStateMachine(Module):
         # Unregistered inputs from master
         self.trigger_in_raw = Signal()
         self.success_in_raw = Signal()
+        self.timeout_in_raw = Signal()
 
         # Unregistered input from slave
         self.slave_ready_raw = Signal()
@@ -157,13 +159,26 @@ class MainStateMachine(Module):
         self.trigger_in = Signal()
         self.success_in = Signal()
         self.slave_ready = Signal()
+        self.timeout_in = Signal()
         self.sync += [
             self.trigger_in.eq(self.trigger_in_raw),
             self.success_in.eq(self.success_in_raw),
-            self.slave_ready.eq(self.slave_ready_raw)
+            self.slave_ready.eq(self.slave_ready_raw),
+            self.timeout_in.eq(self.timeout_in_raw)
         ]
 
-        self.comb += self.timeout.eq(self.time_remaining == 0)
+        self.sync += [
+            If(self.run_stb, self.running.eq(1)),
+            If(self.done_stb, self.running.eq(0))
+        ]
+
+
+        # The core times out if time_remaining countdown reaches zero, or,
+        # if we are a slave, if the master has timed out.
+        # This is required to ensure the slave syncs with the master
+        self.comb += self.timeout.eq( (self.time_remaining == 0) 
+                            | (~self.is_master & self.timeout_in))
+
         self.sync += [
             If(self.run_stb,
                 self.time_remaining.eq(self.time_remaining_buf)
@@ -175,7 +190,7 @@ class MainStateMachine(Module):
         done = Signal()
         done_d = Signal()
         finishing = Signal()
-        self.comb += finishing.eq( ~self.run_stb & (self.timeout | self.success))
+        self.comb += finishing.eq( ~self.run_stb & self.running & (self.timeout | self.success))
         # Done asserted at the at the end of the successful / timedout cycle
         self.comb += done.eq(finishing & self.cycle_starting)
         self.comb += self.done_stb.eq(done & ~done_d)
@@ -285,6 +300,10 @@ class EntanglerCore(Module):
                 self.msm.is_master & ~self.msm.standalone)
             ts_buf(if_pads[2],
                 self.msm.success, self.msm.success_in_raw,
+                self.msm.is_master & ~self.msm.standalone)
+
+            ts_buf(if_pads[3],
+                self.msm.timeout, self.msm.timeout_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
 
         # Connect heralder module signal in order
