@@ -79,23 +79,55 @@ def msm_standalone_test(dut):
 def msm_pair_test(dut):
     yield dut.master.m_end.eq(10)
     yield dut.slave.m_end.eq(10)
-    yield dut.master.time_remaining.eq(100)
-    yield dut.slave.time_remaining.eq(100)
+    yield dut.master.time_remaining_buf.eq(100)
+    yield dut.slave.time_remaining_buf.eq(100)
 
-    yield
-    yield dut.master.run_stb.eq(1)
-    yield
-    yield dut.master.run_stb.eq(0)
+    def run(t_start_master=10, t_start_slave=20, t_herald=None):
+        yield dut.master.herald.eq(0)
+        for _ in range(5):
+            yield
+        t_master_done = None
+        success_master = False
+        success_slave = False
+        t_slave_done = None
+        for i in range(200):
+            if i==t_start_master:
+                yield dut.master.run_stb.eq(1)
+            elif i==t_start_master+1:
+                yield dut.master.run_stb.eq(0)
+            if i==t_start_slave:
+                yield dut.slave.run_stb.eq(1)
+            elif i==t_start_slave+1:
+                yield dut.slave.run_stb.eq(0)
+            if t_herald and i==t_herald:
+                yield dut.master.herald.eq(1)
 
-    for i in range(100):
-        if i == 4:
-            yield dut.slave.run_stb.eq(1)
-        if i == 5:
-            yield dut.slave.run_stb.eq(0)
-        if i == 9:
-            yield dut.master.herald.eq(1)
-        yield
+            if (yield dut.master.done_stb):
+                t_master_done = i
+                success_master = yield dut.master.success
+            if (yield dut.slave.done_stb):
+                t_slave_done = i
+                success_slave = yield dut.slave.success
 
+            yield
+        print(t_master_done, t_slave_done)
+
+        # Master and slave should agree on success
+        assert success_master == success_slave
+        success = success_master
+
+        # Success only if we expect it
+        assert success == (t_herald is not None)
+
+        # If success, master and slave should finish at the same time (modulo registering offsets)
+        if success:
+            assert t_master_done == t_slave_done-1
+
+    # Start at different times, but sync up and agree on success
+    yield from run(t_start_master=10, t_start_slave=20, t_herald=80)
+
+    # Time out without success, starting at different times
+    yield from run(t_start_master=10, t_start_slave=60, t_herald=None)
 
 
 
