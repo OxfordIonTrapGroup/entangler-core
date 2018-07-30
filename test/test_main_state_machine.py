@@ -31,9 +31,10 @@ class MsmPair(Module):
 
         self.comb += [
             self.master.is_master.eq(1),
-            self.master.slave_ready.eq(self.slave.ready),
-            self.slave.trigger_in.eq(self.master.trigger_out),
-            self.slave.success_in.eq(self.master.success)
+            self.master.slave_ready_raw.eq(self.slave.ready),
+            self.slave.trigger_in_raw.eq(self.master.trigger_out),
+            self.slave.success_in_raw.eq(self.master.success),
+            self.slave.timeout_in_raw.eq(self.master.timeout)
         ]
 
 
@@ -46,7 +47,7 @@ def msm_standalone_test(dut):
     yield
     yield
 
-    def run_a_while(allow_success=True):
+    def run(allow_success=True):
         # Run and check we finish when we get a herald (if allow_success) or
         # that we time out
         for _ in range(20):
@@ -66,36 +67,80 @@ def msm_standalone_test(dut):
         success = yield dut.success
         assert success == allow_success
 
-    yield from run_a_while()
+    yield from run()
 
     # Check core still works with a full reset
-    yield from run_a_while()
+    yield from run()
 
     # Check timeout works
-    yield from run_a_while(False)
+    yield from run(False)
 
 
 
 def msm_pair_test(dut):
     yield dut.master.m_end.eq(10)
     yield dut.slave.m_end.eq(10)
-    yield dut.master.time_remaining.eq(100)
-    yield dut.slave.time_remaining.eq(100)
+    yield dut.master.time_remaining_buf.eq(100)
+    yield dut.slave.time_remaining_buf.eq(100)
 
-    yield
-    yield dut.master.run_stb.eq(1)
-    yield
-    yield dut.master.run_stb.eq(0)
+    def run(t_start_master=10, t_start_slave=20, t_herald=None):
+        yield dut.master.herald.eq(0)
+        for _ in range(5):
+            yield
+        t_master_done = None
+        success_master = False
+        success_slave = False
+        t_slave_done = None
+        for i in range(200):
+            if i==t_start_master:
+                yield dut.master.run_stb.eq(1)
+            elif i==t_start_master+1:
+                yield dut.master.run_stb.eq(0)
+            if i==t_start_slave:
+                yield dut.slave.run_stb.eq(1)
+            elif i==t_start_slave+1:
+                yield dut.slave.run_stb.eq(0)
+            if t_herald and i==t_herald:
+                yield dut.master.herald.eq(1)
 
-    for i in range(100):
-        if i == 4:
-            yield dut.slave.run_stb.eq(1)
-        if i == 5:
-            yield dut.slave.run_stb.eq(0)
-        if i == 9:
-            yield dut.master.herald.eq(1)
-        yield
+            if (yield dut.master.done_stb):
+                t_master_done = i
+                success_master = yield dut.master.success
+            if (yield dut.slave.done_stb):
+                t_slave_done = i
+                success_slave = yield dut.slave.success
 
+            m_master = yield dut.master.m
+            m_slave = yield dut.slave.m
+            if m_master == 1:
+                assert m_master == m_slave
+
+            yield
+        print(t_master_done, t_slave_done)
+
+        # Master and slave should agree on success
+        assert success_master == success_slave
+        success = success_master
+
+        # Success only if we expect it
+        assert success == (t_herald is not None)
+
+        # Master and slave should finish at the same time (modulo registering offsets)
+        # on success, this is obvious
+        # without success, when the master times out it should stop the slave - 
+        # this can only occur if the master times out before the slave
+        if success or t_start_slave > t_start_master:
+            assert t_master_done == t_slave_done-2
+
+    # Start at different times, but sync up and agree on success
+    yield from run(t_start_master=10, t_start_slave=20, t_herald=80)
+
+    # Time out without success, slave timing out first
+    # Slave does not run - just starts and times out because master is not running
+    yield from run(t_start_master=60, t_start_slave=10, t_herald=None)
+
+    # Time out without success, master timing out first
+    yield from run(t_start_master=10, t_start_slave=60, t_herald=None)
 
 
 
