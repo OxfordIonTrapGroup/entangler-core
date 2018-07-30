@@ -10,10 +10,10 @@ ADDR_W_TCYCLE = 2
 ADDR_W_HERALD = 3
 
 # Output channel addresses
-out_1092 = 0b1000+0
+out_422pulsed_trigger = 0b1000+0
 out_422sigma = 0b1000+1
-out_422pulsed_trigger = 0b1000+2
-out_misc = 0b1000+3
+out_misc = 0b1000+2
+out_1092 = 0b1000+3
 gate_apd1_a = 0b1000+4
 gate_apd1_b = 0b1000+5
 gate_apd2_a = 0b1000+6
@@ -93,7 +93,7 @@ class Entangler:
     @kernel
     def set_timing(self, channel, t_start, t_stop):
         """Set the output channel timing and relative gate times.
-        
+
         Times are in seconds.
         For output channels the timing resolution is the coarse clock (8ns), and
         the times are relative to the start of the entanglement cycle.
