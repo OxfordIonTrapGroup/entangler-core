@@ -91,10 +91,10 @@ class Entangler:
         self.write(ADDR_W_CONFIG, data)
 
     @kernel
-    def set_timing(self, channel, t_start, t_stop):
+    def set_timing_mu(self, channel, t_start_mu, t_stop_mu):
         """Set the output channel timing and relative gate times.
 
-        Times are in seconds.
+        Times are in machine units.
         For output channels the timing resolution is the coarse clock (8ns), and
         the times are relative to the start of the entanglement cycle.
         For gate channels the time is relative to the reference pulse (422
@@ -106,30 +106,43 @@ class Entangler:
         length. If the stop is before the start, the pulse stops at the cycle
         length. If the start is after the cycle length there is no pulse.
         """
-        mu_start = np.int32(self.core.seconds_to_mu(t_start))
-        mu_stop = np.int32(self.core.seconds_to_mu(t_stop))
-
         if channel < gate_apd1_a:
-            mu_start = mu_start >> 3
-            mu_stop = mu_stop >> 3
+            t_start_mu = t_start_mu >> 3
+            t_stop_mu = t_stop_mu >> 3
 
-        mu_start += 1
-        mu_stop += 1
+        t_start_mu += 1
+        t_stop_mu += 1
 
         # Truncate to 14 bits
-        mu_start &= 0x3fff
-        mu_stop &= 0x3fff
-        self.write(channel, (mu_stop<<16) | mu_start)
+        t_start_mu &= 0x3fff
+        t_stop_mu &= 0x3fff
+        self.write(channel, (t_stop_mu<<16) | t_start_mu)
+
+    @kernel
+    def set_timing(self, channel, t_start, t_stop):
+        """Set the output channel timing and relative gate times.
+
+        Times are in seconds. See set_timing_mu() for details"""
+        t_start_mu = np.int32(self.core.seconds_to_mu(t_start))
+        t_stop_mu = np.int32(self.core.seconds_to_mu(t_stop))
+        self.set_timing_mu(channel, t_start_mu, t_stop_mu)
+
+    @kernel
+    def set_cycle_length_mu(self, t_cycle_mu):
+        """Set the entanglement cycle length.
+
+        If the herald module does not signal success by this time the loop
+        repeats. Resolution is coarse_ref_period."""
+        t_cycle_mu = t_cycle_mu >> 3
+        self.write(ADDR_W_TCYCLE, t_cycle_mu)
 
     @kernel
     def set_cycle_length(self, t_cycle):
         """Set the entanglement cycle length.
 
-        If the herald module does not signal success by this time the loop
-        repeats. Resolution is coarse_ref_period."""
-        mu_cycle = np.int32(self.core.seconds_to_mu(t_cycle))
-        mu_cycle = mu_cycle >> 3
-        self.write(ADDR_W_TCYCLE, mu_cycle)
+        Times are in seconds."""
+        t_cycle_mu = np.int32(self.core.seconds_to_mu(t_cycle))
+        self.set_cycle_length_mu(t_cycle_mu)
 
     @kernel
     def set_heralds(self, heralds):
@@ -150,7 +163,7 @@ class Entangler:
         self.write(ADDR_W_HERALD, data)
 
     @kernel
-    def run(self, duration):
+    def run_mu(self, duration_mu):
         """Run the entanglement sequence until success, or duration (in seconds)
         has elapsed. Blocking.
 
@@ -159,10 +172,17 @@ class Entangler:
         reason is 0x3fff if there was a timeout, or a bitfield giving the
         herald matches if there was a success.
         """
-        mu_duration = np.int32(self.core.seconds_to_mu(duration))
-        mu_duration = mu_duration >> 3
-        rtio_output(now_mu(), self.channel, ADDR_W_RUN, mu_duration)
+        duration_mu = duration_mu >> 3
+        rtio_output(now_mu(), self.channel, ADDR_W_RUN, duration_mu)
         return rtio_input_timestamp_data(self.channel)
+
+    @kernel
+    def run(self, duration):
+        """Run the entanglement sequence. See run_mu() for details.
+
+        Duration is in seconds"""
+        duration_mu = np.int32(self.core.seconds_to_mu(duration))
+        return self.run_mu(duration_mu)
 
     @kernel
     def get_status(self):
