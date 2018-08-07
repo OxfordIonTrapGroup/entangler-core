@@ -61,7 +61,7 @@ class InputGater(Module):
 
         # # #
 
-        got_ref = Signal()
+        self.got_ref = Signal()
 
         # Absolute gate times, calculated when we get the reference event
         abs_gate_start = Signal(counter_width+n_fine)
@@ -72,13 +72,13 @@ class InputGater(Module):
 
         self.sync += [
             If(phy_ref.stb_rising,
-                got_ref.eq(1),
+                self.got_ref.eq(1),
                 self.ref_ts.eq(t_ref),
                 abs_gate_start.eq(self.gate_start + t_ref),
                 abs_gate_stop.eq(self.gate_stop + t_ref)
             ),
             If(self.clear,
-                got_ref.eq(0),
+                self.got_ref.eq(0),
                 self.triggered.eq(0)
             )
         ]
@@ -323,5 +323,14 @@ class EntanglerCore(Module):
 
         self.comb += self.msm.herald.eq(self.heralder.herald)
 
-
-
+        # 422pulse trigger counter
+        self.triggers_received = Signal(14)
+        self.sync += [
+            If(self.msm.run_stb,
+                self.triggers_received.eq(0)
+            ).Else(
+                If(self.msm.running & self.apd_gaters[0][0].got_ref,
+                    self.triggers_received.eq(self.triggers_received+1)
+                )
+            )
+        ]

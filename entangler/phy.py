@@ -114,6 +114,7 @@ class Entangler(Module):
         cases[0] = [reg_read.eq(status)]
         cases[1] = [reg_read.eq(self.core.msm.cycles_completed)]
         cases[2] = [reg_read.eq(self.core.msm.time_remaining)]
+        cases[3] = [reg_read.eq(self.core.triggers_received)]
         self.comb += Case(read_addr, cases)
 
         # Generate an input event if we have a read request RTIO Output event, 
