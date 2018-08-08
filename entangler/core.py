@@ -154,7 +154,11 @@ class MainStateMachine(Module):
         # Asserted at the start of each entanglement attempt cycle
         self.cycle_starting = Signal()
 
+        self.cycle_ending = Signal()
+
         # # #
+
+        self.comb += self.cycle_ending.eq(self.m == self.m_end)
 
         self.trigger_in = Signal()
         self.success_in = Signal()
@@ -176,7 +180,7 @@ class MainStateMachine(Module):
         # The core times out if time_remaining countdown reaches zero, or,
         # if we are a slave, if the master has timed out.
         # This is required to ensure the slave syncs with the master
-        self.comb += self.timeout.eq( (self.time_remaining == 0) 
+        self.comb += self.timeout.eq( (self.time_remaining == 0)
                             | (~self.is_master & self.timeout_in))
 
         self.sync += [
@@ -225,9 +229,9 @@ class MainStateMachine(Module):
         )
         fsm.act("COUNTER",
             NextValue(self.m, self.m + 1),
-            If(self.m == self.m_end,
+            If(self.cycle_ending,
                 NextValue(self.cycles_completed, self.cycles_completed+1),
-                If(self.is_master, 
+                If(self.is_master,
                     If(self.herald, NextValue(self.success, 1)),
                     NextState("IDLE")
                 ).Else(
@@ -260,7 +264,7 @@ class EntanglerCore(Module):
 
         self.submodules.sequencers = [ChannelSequencer(self.msm.m) for _ in range(4)]
 
-        self.submodules.apd_gaters = [[InputGater(self.msm.m, phy_422pulse, phy_sig) 
+        self.submodules.apd_gaters = [[InputGater(self.msm.m, phy_422pulse, phy_sig)
                                                         for _ in range(2)]
                                             for phy_sig in [phy_apd1, phy_apd2]]
 
@@ -308,8 +312,8 @@ class EntanglerCore(Module):
 
         # Connect heralder module signal in order
         # [apd1_gate1, apd1_gate2, apd2_gate1, apd2_gate2]
-        self.comb += self.heralder.sig.eq( 
-                Cat(*[gater.triggered 
+        self.comb += self.heralder.sig.eq(
+                Cat(*[gater.triggered
                             for gaters in self.apd_gaters
                             for gater in gaters])
             )
@@ -329,7 +333,7 @@ class EntanglerCore(Module):
             If(self.msm.run_stb,
                 self.triggers_received.eq(0)
             ).Else(
-                If(self.msm.running & self.apd_gaters[0][0].got_ref,
+                If(self.msm.cycle_ending & self.apd_gaters[0][0].got_ref,
                     self.triggers_received.eq(self.triggers_received+1)
                 )
             )
