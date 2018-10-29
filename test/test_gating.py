@@ -52,12 +52,10 @@ def gater_test(dut, gate_start=None, gate_stop=None, t_ref=None, t_sig=None):
 
     triggered = (yield dut.core.triggered)
 
-    ref_coarse_ts = (yield dut.core.ref_coarse_ts)
-    ref_fine_ts = (yield dut.core.ref_fine_ts)
-    sig_coarse_ts = (yield dut.core.sig_coarse_ts)
-    sig_fine_ts = (yield dut.core.sig_fine_ts)
+    ref_ts = (yield dut.core.ref_ts)
+    sig_ts = (yield dut.core.sig_ts)
 
-    print(triggered, ref_coarse_ts, ref_fine_ts, sig_coarse_ts, ref_fine_ts)
+    print(triggered, ref_ts, sig_ts)
 
     dt = t_sig-t_ref
     expected_triggered = (dt >= gate_start) & (dt <= gate_stop)
