@@ -28,10 +28,10 @@ class StandaloneHarness(Module):
         self.submodules.phy_2 = MockPhy(self.counter)
         input_phys = [self.phy_ref, self.phy_1, self.phy_2]
 
-        if_pads = None
+        core_link_pads = None
         output_pads = None
         output_sigs = None
-        self.submodules.core = EntanglerCore(if_pads, output_pads, output_sigs, input_phys, simulate=True)
+        self.submodules.core = EntanglerCore(core_link_pads, output_pads, output_sigs, input_phys, simulate=True)
 
         self.comb += self.counter.eq(self.core.msm.m)
 

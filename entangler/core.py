@@ -261,7 +261,7 @@ class MainStateMachine(Module):
 
 
 class EntanglerCore(Module):
-    def __init__(self, if_pads, output_pads, output_sigs, input_phys, simulate=False):
+    def __init__(self, core_link_pads, output_pads, output_sigs, input_phys, simulate=False):
         self.enable = Signal()
         # # #
 
@@ -305,17 +305,17 @@ class EntanglerCore(Module):
                     io_IO=pad.p, io_IOB=pad.n)
 
             # Interface between master and slave core
-            ts_buf(if_pads[0],
+            ts_buf(core_link_pads[0],
                 self.msm.ready, self.msm.slave_ready_raw,
                 ~self.msm.is_master & ~self.msm.standalone)
-            ts_buf(if_pads[1],
+            ts_buf(core_link_pads[1],
                 self.msm.trigger_out, self.msm.trigger_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
-            ts_buf(if_pads[2],
+            ts_buf(core_link_pads[2],
                 self.msm.success, self.msm.success_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
 
-            ts_buf(if_pads[3],
+            ts_buf(core_link_pads[3],
                 self.msm.timeout, self.msm.timeout_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
 
