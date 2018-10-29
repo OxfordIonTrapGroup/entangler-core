@@ -1,20 +1,28 @@
 from migen import *
 
+# Width of sequence duration counters and the coarse part of input timestamps
+# (units of clock cycles).
 counter_width = 11
 
 
 class ChannelSequencer(Module):
+    """Pulses `output` between the given edge times.
+
+    `m_start`/`m_stop` specify the values of the given counter signal `m` (assumed to be
+    monotonically increasing) between which the output is active. `clear` deasserts the
+    output irrespective of the configured times.
+    """
     def __init__(self, m):
         self.m_start = Signal(counter_width)
         self.m_stop = Signal(counter_width)
         self.clear = Signal()
 
-        self.stb_start = Signal()
-        self.stb_stop = Signal()
-
         self.output = Signal()
 
         # # #
+
+        self.stb_start = Signal()
+        self.stb_stop = Signal()
 
         self.comb += [
             self.stb_start.eq(m == self.m_start),
@@ -121,7 +129,7 @@ class Heralder(Module):
 
 class MainStateMachine(Module):
     def __init__(self, counter_width=10):
-        self.m = Signal(counter_width)
+        self.m = Signal(counter_width) # Global cycle-relative time.
         self.time_remaining = Signal(32) # Clock cycles remaining before timeout
         self.time_remaining_buf = Signal(32)
         self.cycles_completed = Signal(14) # How many iterations of the loop have completed since last start
