@@ -31,10 +31,12 @@ class PhyHarness(Module):
     def __init__(self):
         self.counter = Signal(32)
 
+        self.submodules.phy_apd0 = MockPhy(self.counter)
+        self.submodules.phy_apd1 = MockPhy(self.counter)
+        self.submodules.phy_apd2 = MockPhy(self.counter)
+        self.submodules.phy_apd3 = MockPhy(self.counter)
         self.submodules.phy_ref = MockPhy(self.counter)
-        self.submodules.phy_1 = MockPhy(self.counter)
-        self.submodules.phy_2 = MockPhy(self.counter)
-        input_phys = [self.phy_ref, self.phy_1, self.phy_2]
+        input_phys = [self.phy_apd0, self.phy_apd1, self.phy_apd2, self.phy_apd3, self.phy_ref]
 
         core_link_pads = None
         output_pads = None
@@ -62,8 +64,8 @@ def test_basic(dut):
         yield from out(ADDR_HERALDS, data)
 
     yield dut.phy_ref.t_event.eq( 1000 )
-    yield dut.phy_1.t_event.eq( 1000 )
-    yield dut.phy_2.t_event.eq( 1000 )
+    yield dut.phy_apd0.t_event.eq( 1000 )
+    yield dut.phy_apd1.t_event.eq( 1000 )
 
     for _ in range(5):
         yield
@@ -82,8 +84,8 @@ def test_basic(dut):
     for i in range(1000):
         # if i==200:
         #     yield dut.phy_ref.t_event.eq( 8*10+3 )
-        #     yield dut.phy_1.t_event.eq( 8*10+3 + 18)
-        #     yield dut.phy_2.t_event.eq( 8*10+3 + 30)
+        #     yield dut.phy_apd0.t_event.eq( 8*10+3 + 18)
+        #     yield dut.phy_apd1.t_event.eq( 8*10+3 + 30)
         yield
 
     yield from out(0b10000, 0) # Read status

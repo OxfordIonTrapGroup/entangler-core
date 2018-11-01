@@ -8,10 +8,10 @@ class Entangler(Module):
     def __init__(self, core_link_pads, output_pads, output_sigs, input_phys, simulate=False):
         """
         core_link_pads: EEM pads for inter-Kasli link
-        output_pads: pads for 4 output signals
-        output_sigs: signals from output phys, connected to output_pads when
-            core not running
-        input_phys: serdes phys for 4 inputs
+        output_pads: pads for 4 output signals (422sigma, 1092, 422 ps trigger, aux)
+        output_sigs: signals from output phys, connected to output_pads when core not
+            running
+        input_phys: serdes phys for 5 inputs – APD0-3 and 422ps trigger in
         """
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
@@ -39,11 +39,9 @@ class Entangler(Module):
         output_t_starts = [seq.m_start for seq in self.core.sequencers]
         output_t_ends = [seq.m_stop for seq in self.core.sequencers]
         output_t_starts += [gater.gate_start
-                                for gaters in self.core.apd_gaters
-                                for gater in gaters]
+                                for gater in self.core.apd_gaters]
         output_t_ends += [gater.gate_stop
-                                for gaters in self.core.apd_gaters
-                                for gater in gaters]
+                                for gater in self.core.apd_gaters]
         cases = {}
         for i in range(len(output_t_starts)):
             cases[i] = [output_t_starts[i].eq(self.rtlink.o.data[:16]),
@@ -81,11 +79,9 @@ class Entangler(Module):
         read_timings = Signal()
         read_addr = Signal(3)
 
-        # Input timestamps are [ref, apd1_1, apd1_2, apd2_1, apd2_2]
-        input_timestamps = [self.core.apd_gaters[0][0].ref_ts]
-        input_timestamps += [gater.sig_ts
-                                for gaters in self.core.apd_gaters
-                                for gater in gaters]
+        # Input timestamps are [apd0, apd1, apd2, apd3, ref]
+        input_timestamps = [gater.sig_ts for gater in self.core.apd_gaters]
+        input_timestamps.append(self.core.apd_gaters[0].ref_ts)
         cases = {}
         timing_data = Signal(14)
         for i, ts in enumerate(input_timestamps):

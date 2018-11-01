@@ -23,10 +23,12 @@ class StandaloneHarness(Module):
     def __init__(self):
         self.counter = Signal(32)
 
+        self.submodules.phy_apd0 = MockPhy(self.counter)
+        self.submodules.phy_apd1 = MockPhy(self.counter)
+        self.submodules.phy_apd2 = MockPhy(self.counter)
+        self.submodules.phy_apd3 = MockPhy(self.counter)
         self.submodules.phy_ref = MockPhy(self.counter)
-        self.submodules.phy_1 = MockPhy(self.counter)
-        self.submodules.phy_2 = MockPhy(self.counter)
-        input_phys = [self.phy_ref, self.phy_1, self.phy_2]
+        input_phys = [self.phy_apd0, self.phy_apd1, self.phy_apd2, self.phy_apd3, self.phy_ref]
 
         core_link_pads = None
         output_pads = None
@@ -51,14 +53,16 @@ def standalone_test(dut):
     yield dut.core.sequencers[3].m_start.eq(0)
     yield dut.core.sequencers[3].m_stop.eq(0)
 
-    yield dut.core.apd_gaters[0][0].gate_start.eq(18)
-    yield dut.core.apd_gaters[0][0].gate_stop.eq(30)
-    yield dut.core.apd_gaters[1][0].gate_start.eq(18)
-    yield dut.core.apd_gaters[1][0].gate_stop.eq(30)
+    yield dut.core.apd_gaters[0].gate_start.eq(18)
+    yield dut.core.apd_gaters[0].gate_stop.eq(30)
+    yield dut.core.apd_gaters[1].gate_start.eq(18)
+    yield dut.core.apd_gaters[1].gate_stop.eq(30)
 
     yield dut.phy_ref.t_event.eq( 1000 )
-    yield dut.phy_1.t_event.eq( 1000 )
-    yield dut.phy_2.t_event.eq( 1000 )
+    yield dut.phy_apd0.t_event.eq( 1000 )
+    yield dut.phy_apd1.t_event.eq( 1000 )
+    yield dut.phy_apd2.t_event.eq( 1000 )
+    yield dut.phy_apd3.t_event.eq( 1000 )
 
     yield dut.core.heralder.patterns[0].eq(0b0101)
     yield dut.core.heralder.pattern_ens[0].eq(1)
@@ -73,8 +77,10 @@ def standalone_test(dut):
         yield
 
     yield dut.phy_ref.t_event.eq( 8*10+3 )
-    yield dut.phy_1.t_event.eq( 8*10+3 + 18)
-    yield dut.phy_2.t_event.eq( 8*10+3 + 30)
+    yield dut.phy_apd0.t_event.eq( 8*10+3 + 18)
+    yield dut.phy_apd1.t_event.eq( 8*10+3 + 30)
+    yield dut.phy_apd2.t_event.eq( 8*10+3 + 30)
+    yield dut.phy_apd3.t_event.eq( 8*10+3 + 30)
 
     for i in range(50):
         yield

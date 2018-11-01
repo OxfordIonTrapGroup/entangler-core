@@ -265,17 +265,15 @@ class EntanglerCore(Module):
         self.enable = Signal()
         # # #
 
-        phy_422pulse = input_phys[0]
-        phy_apd1 = input_phys[1]
-        phy_apd2 = input_phys[2]
+        phy_apds = input_phys[0 : 4]
+        phy_422pulse = input_phys[4]
 
         self.submodules.msm = MainStateMachine()
 
         self.submodules.sequencers = [ChannelSequencer(self.msm.m) for _ in range(4)]
 
-        self.submodules.apd_gaters = [[InputGater(self.msm.m, phy_422pulse, phy_sig)
-                                                        for _ in range(2)]
-                                            for phy_sig in [phy_apd1, phy_apd2]]
+        self.submodules.apd_gaters = [InputGater(self.msm.m, phy_422pulse, phy_apd)
+                                      for phy_apd in phy_apds]
 
         self.submodules.heralder = Heralder(n_sig=4, n_patterns=4)
 
@@ -304,45 +302,43 @@ class EntanglerCore(Module):
                     i_I=sig_o, o_O=sig_i, i_T=~en_out,
                     io_IO=pad.p, io_IOB=pad.n)
 
-            # Interface between master and slave core
+            # Interface between master and slave core.
+
+            # Slave -> master:
             ts_buf(core_link_pads[0],
                 self.msm.ready, self.msm.slave_ready_raw,
                 ~self.msm.is_master & ~self.msm.standalone)
+
+            # Master -> slave:
             ts_buf(core_link_pads[1],
                 self.msm.trigger_out, self.msm.trigger_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
             ts_buf(core_link_pads[2],
                 self.msm.success, self.msm.success_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
-
             ts_buf(core_link_pads[3],
                 self.msm.timeout, self.msm.timeout_in_raw,
                 self.msm.is_master & ~self.msm.standalone)
 
-        # Connect heralder module signal in order
-        # [apd1_gate1, apd1_gate2, apd2_gate1, apd2_gate2]
-        self.comb += self.heralder.sig.eq(
-                Cat(*[gater.triggered
-                            for gaters in self.apd_gaters
-                            for gater in gaters])
-            )
+        # Connect heralder inputs.
+        self.comb += self.heralder.sig.eq(Cat(*(g.triggered for g in self.apd_gaters)))
 
         # Clear gater and sequencer state at start of each cycle
         self.comb += [gater.clear.eq(self.msm.cycle_starting)
-                            for gaters in self.apd_gaters
-                            for gater in gaters]
+                            for gater in self.apd_gaters]
         self.comb += [sequencer.clear.eq(self.msm.cycle_starting)
                             for sequencer in self.sequencers]
 
         self.comb += self.msm.herald.eq(self.heralder.herald)
 
-        # 422pulse trigger counter
+        # 422ps trigger event counter. We use got_ref from the first gater for
+        # convenience (any other channel would work just as well).
         self.triggers_received = Signal(14)
         self.sync += [
             If(self.msm.run_stb,
                 self.triggers_received.eq(0)
             ).Else(
-                If(self.msm.cycle_ending & self.apd_gaters[0][0].got_ref,
+                If(self.msm.cycle_ending & self.apd_gaters[0].got_ref,
                     self.triggers_received.eq(self.triggers_received+1)
                 )
             )

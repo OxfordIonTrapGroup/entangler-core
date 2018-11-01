@@ -10,25 +10,25 @@ ADDR_W_TCYCLE = 2
 ADDR_W_HERALD = 3
 
 # Output channel addresses
-out_422pulsed_trigger = 0b1000+0
-out_422sigma = 0b1000+1
-out_misc = 0b1000+2
-out_1092 = 0b1000+3
-gate_apd1_a = 0b1000+4
-gate_apd1_b = 0b1000+5
-gate_apd2_a = 0b1000+6
-gate_apd2_b = 0b1000+7
+sequencer_422sigma = 0b1000+0
+sequencer_1092 = 0b1000+1
+sequencer_422ps_trigger = 0b1000+2
+sequencer_aux = 0b1000+3
+gate_apd0 = 0b1000+4
+gate_apd1 = 0b1000+5
+gate_apd2 = 0b1000+6
+gate_apd3 = 0b1000+7
 
 # Read only
 ADDR_R_STATUS = 0b10000
 ADDR_R_NCYCLES = 0b10000+1
 ADDR_R_TIMEREMAINING = 0b10000+2
 ADDR_R_NTRIGGERS = 0b10000+3
-ts_422PULSE = 0b11000+0
-ts_APD1A = 0b11000+1
-ts_APD1B = 0b11000+2
-ts_APD2A = 0b11000+3
-ts_APD2B = 0b11000+4
+timestamp_apd0 = 0b11000+0
+timestamp_apd1 = 0b11000+1
+timestamp_apd2 = 0b11000+2
+timestamp_apd3 = 0b11000+3
+timestamp_422ps = 0b11000+4
 
 
 class Entangler:
