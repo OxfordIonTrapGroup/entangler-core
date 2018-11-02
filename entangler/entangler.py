@@ -109,7 +109,7 @@ class Entangler:
         length. If the stop is before the start, the pulse stops at the cycle
         length. If the start is after the cycle length there is no pulse.
         """
-        if channel < gate_apd1_a:
+        if channel < gate_apd0:
             t_start_mu = t_start_mu >> 3
             t_stop_mu = t_stop_mu >> 3
 
