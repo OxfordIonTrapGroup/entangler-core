@@ -1,3 +1,5 @@
+"""ARTIQ kernel interface to the entangler core."""
+
 from artiq.language.core import kernel, delay, now_mu, delay_mu, portable
 from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp_data

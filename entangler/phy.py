@@ -1,3 +1,5 @@
+"""Gateware-side ARTIQ RTIO interface to the entangler core."""
+
 from migen import *
 
 from artiq.gateware.rtio import rtlink
