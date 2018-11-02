@@ -38,10 +38,8 @@ class Entangler(Module):
 
         output_t_starts = [seq.m_start for seq in self.core.sequencers]
         output_t_ends = [seq.m_stop for seq in self.core.sequencers]
-        output_t_starts += [gater.gate_start
-                                for gater in self.core.apd_gaters]
-        output_t_ends += [gater.gate_stop
-                                for gater in self.core.apd_gaters]
+        output_t_starts += [gater.gate_start for gater in self.core.apd_gaters]
+        output_t_ends += [gater.gate_stop for gater in self.core.apd_gaters]
         cases = {}
         for i in range(len(output_t_starts)):
             cases[i] = [output_t_starts[i].eq(self.rtlink.o.data[:16]),
@@ -113,17 +111,16 @@ class Entangler(Module):
         cases[3] = [reg_read.eq(self.core.triggers_received)]
         self.comb += Case(read_addr, cases)
 
-        # Generate an input event if we have a read request RTIO Output event, 
-        # Or if the core has finished.
-        # If the core is finished output the herald match or 0x3fff on timeout
-        # We expect to never get a read request and a core finished event at the same time
+        # Generate an input event if we have a read request RTIO Output event, or if the
+        # core has finished. If the core is finished output the herald match, or 0x3fff
+        # on timeout.
+        #
+        # Simultaneous read requests and core-done events are not currently handled, but
+        # are easy to avoid in the client code.
         self.comb += [
-                self.rtlink.i.stb.eq(read | (self.core.enable & self.core.msm.done_stb)),
-                self.rtlink.i.data.eq(
-                    Mux(self.core.enable & self.core.msm.done_stb, Mux(self.core.msm.success,self.core.heralder.matches, 0x3fff),
-                        Mux(read_timings,
-                            timing_data,
-                            reg_read)
-                        )
-                    )
+            self.rtlink.i.stb.eq(read | self.core.enable & self.core.msm.done_stb),
+            self.rtlink.i.data.eq(
+                Mux(self.core.enable & self.core.msm.done_stb,
+                    Mux(self.core.msm.success, self.core.heralder.matches, 0x3fff),
+                    Mux(read_timings, timing_data, reg_read)))
         ]
