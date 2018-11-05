@@ -87,8 +87,7 @@ class InputGater(Module):
             ),
             If(self.clear,
                 self.got_ref.eq(0),
-                self.triggered.eq(0),
-                self.sig_ts.eq(0)
+                self.triggered.eq(0)
             )
         ]
 
