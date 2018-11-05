@@ -159,7 +159,8 @@ class MainStateMachine(Module):
 
         self.m_end = Signal(counter_width) # Number of clock cycles to run main loop for
 
-        # Asserted at the start of each entanglement attempt cycle
+        # Asserted while the entangler is idling, waiting for the entanglement cycle to
+        # start.
         self.cycle_starting = Signal()
 
         self.cycle_ending = Signal()
