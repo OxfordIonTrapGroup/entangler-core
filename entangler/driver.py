@@ -2,7 +2,7 @@
 
 from artiq.language.core import kernel, delay, now_mu, delay_mu, portable
 from artiq.language.units import us, ns
-from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp_data
+from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamped_data
 import numpy as np
 
 # Write only
@@ -177,7 +177,7 @@ class Entangler:
         """
         duration_mu = duration_mu >> 3
         rtio_output(now_mu(), self.channel, ADDR_W_RUN, duration_mu)
-        return rtio_input_timestamp_data(self.channel)
+        return rtio_input_timestamped_data(self.channel)
 
     @kernel
     def run(self, duration):
