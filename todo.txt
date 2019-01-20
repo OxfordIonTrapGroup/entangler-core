@@ -36,20 +36,3 @@ So bits[4:3] = 0 for low reg writes, 1 for timing reg writes, 2 for status reads
 
 
 The smallest time stamp that is valid for output events is 1 (0 makes the output stay off permantly)
-
-
----
-
-
-Kasli connections:
-DDS:
-422pulsed AOM (not touched by entangler)
-TTL output:
-_1092_fastsw, _422sigma_fastsw, _422pulsed_trigger
-TTL input:
-APD1, APD2, _422pulsed_input
-
-
-So, we can use a bank of 4 outputs as TTLSimples, with the OBUFDS in our code
-and we can use a bank of 4 inputs as normal RTIO channels, but with tap offs
-Thus we should use a complete DIO EEM, with all the channel hook-ups done inside our class
