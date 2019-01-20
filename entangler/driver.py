@@ -87,7 +87,7 @@ class Entangler:
         data = 0
         if enable:
             data |= 1
-        if self.is_master or standalone:
+        if self.is_master:
             data |= 1<<1
         if standalone:
             data |= 1<<2

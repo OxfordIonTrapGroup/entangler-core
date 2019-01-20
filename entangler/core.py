@@ -145,7 +145,9 @@ class MainStateMachine(Module):
         self.herald = Signal()
 
         self.is_master = Signal()
-        self.standalone = Signal() # Asserted with is_master, ignore slave state for single-device testing
+        self.standalone = Signal() # Ignore state of partner for single-device testing.
+        self.act_as_master = Signal()
+        self.comb += self.act_as_master.eq(self.is_master | self.standalone)
 
         self.trigger_out = Signal() # Trigger to slave
 
@@ -190,7 +192,7 @@ class MainStateMachine(Module):
         # if we are a slave, if the master has timed out.
         # This is required to ensure the slave syncs with the master
         self.comb += self.timeout.eq( (self.time_remaining == 0)
-                            | (~self.is_master & self.timeout_in))
+                            | (~self.act_as_master & self.timeout_in))
 
         self.sync += [
             If(self.run_stb,
@@ -220,7 +222,7 @@ class MainStateMachine(Module):
 
         fsm.act("IDLE",
             self.cycle_starting.eq(1),
-            If(self.is_master,
+            If(self.act_as_master,
                 If(~finishing & self.ready & (self.slave_ready | self.standalone), NextState("TRIGGER_SLAVE"))
             ).Else(
                 If(~finishing & self.ready & self.trigger_in, NextState("COUNTER"))
@@ -240,7 +242,7 @@ class MainStateMachine(Module):
             NextValue(self.m, self.m + 1),
             If(self.cycle_ending,
                 NextValue(self.cycles_completed, self.cycles_completed+1),
-                If(self.is_master,
+                If(self.act_as_master,
                     If(self.herald, NextValue(self.success, 1)),
                     NextState("IDLE")
                 ).Else(
@@ -312,13 +314,13 @@ class EntanglerCore(Module):
             # Master -> slave:
             ts_buf(core_link_pads[1],
                 self.msm.trigger_out, self.msm.trigger_in_raw,
-                self.msm.is_master & ~self.msm.standalone)
+                self.msm.is_master)
             ts_buf(core_link_pads[2],
                 self.msm.success, self.msm.success_in_raw,
-                self.msm.is_master & ~self.msm.standalone)
+                self.msm.is_master)
             ts_buf(core_link_pads[3],
                 self.msm.timeout, self.msm.timeout_in_raw,
-                self.msm.is_master & ~self.msm.standalone)
+                self.msm.is_master)
 
         # Connect heralder inputs.
         self.comb += self.heralder.sig.eq(Cat(*(g.triggered for g in self.apd_gaters)))
