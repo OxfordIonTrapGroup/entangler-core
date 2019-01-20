@@ -7,12 +7,12 @@ from entangler.core import EntanglerCore
 
 
 class Entangler(Module):
-    def __init__(self, core_link_pads, output_pads, output_sigs, input_phys, simulate=False):
+    def __init__(self, core_link_pads, output_pads, passthrough_sigs, input_phys, simulate=False):
         """
         core_link_pads: EEM pads for inter-Kasli link
         output_pads: pads for 4 output signals (422sigma, 1092, 422 ps trigger, aux)
-        output_sigs: signals from output phys, connected to output_pads when core not
-            running
+        passthrough_sigs: signals from output phys, connected to output_pads when core
+            not running
         input_phys: serdes phys for 5 inputs – APD0-3 and 422ps trigger in
         """
         self.rtlink = rtlink.Interface(
@@ -28,7 +28,7 @@ class Entangler(Module):
         # # #
 
         self.submodules.core = ClockDomainsRenamer("rio")(
-                    EntanglerCore(core_link_pads, output_pads, output_sigs,
+                    EntanglerCore(core_link_pads, output_pads, passthrough_sigs,
                         input_phys, simulate=simulate))
 
         read_en = self.rtlink.o.address[4]

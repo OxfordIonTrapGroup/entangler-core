@@ -4,6 +4,12 @@ from migen import *
 # (units of clock cycles).
 counter_width = 11
 
+# The 422ps laser system is shared, so for ease of use we OR the slave's RTIO TTL output
+# with the master's signal as long as the entangler core isn't active. The timing will
+# be different from entangler-driven use, but this is only for auxiliary calibration
+# purposes.
+SEQUENCER_IDX_422ps = 2
+
 
 class ChannelSequencer(Module):
     """Pulses `output` between the given edge times.
@@ -263,7 +269,7 @@ class MainStateMachine(Module):
 
 
 class EntanglerCore(Module):
-    def __init__(self, core_link_pads, output_pads, output_sigs, input_phys, simulate=False):
+    def __init__(self, core_link_pads, output_pads, passthrough_sigs, input_phys, simulate=False):
         self.enable = Signal()
         # # #
 
@@ -280,13 +286,18 @@ class EntanglerCore(Module):
         self.submodules.heralder = Heralder(n_sig=4, n_patterns=4)
 
         if not simulate:
+            slave_422ps_raw = Signal()
+
             # Connect output pads to sequencer output when enabled, otherwise use
             # the RTIO phy output
             for i in range(4):
                 sequencer_sig = self.sequencers[i].output
                 pad = output_pads[i]
+                passthrough_sig = passthrough_sigs[i]
+                if i == SEQUENCER_IDX_422ps:
+                    passthrough_sig = passthrough_sig | slave_422ps_raw
                 self.specials += Instance("OBUFDS",
-                              i_I=Mux(self.enable, sequencer_sig, output_sigs[i]),
+                              i_I=Mux(self.enable, sequencer_sig, passthrough_sig),
                               o_O=pad.p, o_OB=pad.n)
 
 
@@ -310,6 +321,10 @@ class EntanglerCore(Module):
             ts_buf(core_link_pads[0],
                 self.msm.ready, self.msm.slave_ready_raw,
                 ~self.msm.is_master & ~self.msm.standalone)
+
+            ts_buf(core_link_pads[4],
+                passthrough_sigs[SEQUENCER_IDX_422ps], slave_422ps_raw,
+                ~self.msm.is_master)
 
             # Master -> slave:
             ts_buf(core_link_pads[1],

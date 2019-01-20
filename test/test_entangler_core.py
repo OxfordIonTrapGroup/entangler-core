@@ -32,8 +32,8 @@ class StandaloneHarness(Module):
 
         core_link_pads = None
         output_pads = None
-        output_sigs = None
-        self.submodules.core = EntanglerCore(core_link_pads, output_pads, output_sigs, input_phys, simulate=True)
+        passthrough_sigs = None
+        self.submodules.core = EntanglerCore(core_link_pads, output_pads, passthrough_sigs, input_phys, simulate=True)
 
         self.comb += self.counter.eq(self.core.msm.m)
 
