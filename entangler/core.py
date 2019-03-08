@@ -295,7 +295,8 @@ class EntanglerCore(Module):
                 pad = output_pads[i]
                 passthrough_sig = passthrough_sigs[i]
                 if i == SEQUENCER_IDX_422ps:
-                    passthrough_sig = passthrough_sig | slave_422ps_raw
+                    passthrough_sig = passthrough_sig |
+                        (slave_422ps_raw & self.msm.is_master)
                 self.specials += Instance("OBUFDS",
                               i_I=Mux(self.enable, sequencer_sig, passthrough_sig),
                               o_O=pad.p, o_OB=pad.n)
