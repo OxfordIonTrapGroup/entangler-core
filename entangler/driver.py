@@ -176,8 +176,8 @@ class Entangler:
         herald matches if there was a success.
         """
         duration_mu = duration_mu >> 3
-        rtio_output(now_mu(), self.channel, ADDR_W_RUN, duration_mu)
-        return rtio_input_timestamped_data(self.channel)
+        self.write(ADDR_W_RUN, duration_mu)
+        return rtio_input_timestamped_data(np.int64(-1), self.channel)
 
     @kernel
     def run(self, duration):
