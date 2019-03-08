@@ -60,7 +60,6 @@ class Entangler(Module):
             If( (self.rtlink.o.address==0) & self.rtlink.o.stb,
                     # Write config
                     self.core.enable.eq(self.rtlink.o.data[0]),
-                    self.core.msm.is_master.eq(self.rtlink.o.data[1]),
                     self.core.msm.standalone.eq(self.rtlink.o.data[2]),
                 ),
             If( (self.rtlink.o.address==2) & self.rtlink.o.stb,
@@ -73,6 +72,12 @@ class Entangler(Module):
                     self.core.heralder.pattern_ens.eq(self.rtlink.o.data[16:20])
                 ),
         ]
+
+        # Write is_master bit in rio_phy reset domain to not break 422ps trigger
+        # forwarding on core.reset().
+        self.sync.rio_phy += If((self.rtlink.o.address == 0) & self.rtlink.o.stb,
+            self.core.msm.is_master.eq(self.rtlink.o.data[1])
+        )
 
 
         read = Signal()
