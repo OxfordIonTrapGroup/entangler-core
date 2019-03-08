@@ -60,7 +60,7 @@ class Entangler:
         :param addr: parameter address.
         :param value: Data to be written.
         """
-        rtio_output(now_mu(), self.channel, addr, value)
+        rtio_output((self.channel << 8) | addr, value)
         delay_mu(self.ref_period_mu)
 
     @kernel
@@ -71,7 +71,7 @@ class Entangler:
 
         :param addr: Memory location address.
         """
-        rtio_output(now_mu(), self.channel, addr, 0)
+        rtio_output((self.channel << 8) | addr, 0)
         return rtio_input_data(self.channel)
 
     @kernel
