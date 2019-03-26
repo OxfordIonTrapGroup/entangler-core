@@ -301,6 +301,12 @@ class EntanglerCore(Module):
                               i_I=Mux(self.enable, sequencer_sig, passthrough_sig),
                               o_O=pad.p, o_OB=pad.n)
 
+            # Connect the "running" output, which is asserted when the core is
+            # running, or controlled by the passthrough signal when the core is
+            # not running.
+            self.specials += Instance("OBUFDS",
+                          i_I=Mux(self.msm.running, 1, passthrough_sigs[4]),
+                          o_O=output_pads[4].p, o_OB=output_pads[4].n)
 
             def ts_buf(pad, sig_o, sig_i, en_out):
                 # diff. IO.
