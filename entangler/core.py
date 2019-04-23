@@ -286,20 +286,29 @@ class EntanglerCore(Module):
         self.submodules.heralder = Heralder(n_sig=4, n_patterns=4)
 
         if not simulate:
+            # To be able to trigger the pulse picker from both systems without
+            # re-plugging cables, we OR the output from the slave (transmitted over the
+            # core link ribbon cable) into the master, as long as the entangler core is
+            # not actually active. There is no mechanism to arbitrate between concurrent
+            # users at this level; the application code must ensure only one experiment
+            # requiring the pulsed laser runs at a time.
+            local_422ps_out = Signal()
             slave_422ps_raw = Signal()
 
             # Connect output pads to sequencer output when enabled, otherwise use
             # the RTIO phy output
-            for i in range(4):
-                sequencer_sig = self.sequencers[i].output
-                pad = output_pads[i]
-                passthrough_sig = passthrough_sigs[i]
+            for i, (sequencer, pad, passthrough_sig) in enumerate(
+                    zip(self.sequencers, output_pads, passthrough_sigs)):
                 if i == SEQUENCER_IDX_422ps:
+                    local_422ps_out = Mux(self.enable,
+                                          sequencer.output, passthrough_sig)
                     passthrough_sig = (passthrough_sig |
-                        (slave_422ps_raw & self.msm.is_master))
+                                       (slave_422ps_raw & self.msm.is_master))
                 self.specials += Instance("OBUFDS",
-                              i_I=Mux(self.enable, sequencer_sig, passthrough_sig),
-                              o_O=pad.p, o_OB=pad.n)
+                                          i_I=Mux(self.enable,
+                                                  sequencer.output, passthrough_sig),
+                                          o_O=pad.p,
+                                          o_OB=pad.n)
 
             # Connect the "running" output, which is asserted when the core is
             # running, or controlled by the passthrough signal when the core is
@@ -330,7 +339,7 @@ class EntanglerCore(Module):
                 ~self.msm.is_master & ~self.msm.standalone)
 
             ts_buf(core_link_pads[4],
-                passthrough_sigs[SEQUENCER_IDX_422ps], slave_422ps_raw,
+                local_422ps_out, slave_422ps_raw,
                 ~self.msm.is_master)
 
             # Master -> slave:
