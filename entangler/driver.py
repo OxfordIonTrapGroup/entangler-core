@@ -5,32 +5,42 @@ from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamped_data
 import numpy as np
 
-# Write only
-ADDR_W_CONFIG = 0
-ADDR_W_RUN = 1
-ADDR_W_TCYCLE = 2
-ADDR_W_HERALD = 3
+#
+# RTIO address space mapping.
+#
+# All channels are either read-only or write-only. When an output event on a read
+# address is received, an input event with the current value is generated (ignoring
+# the output event data). By convention, the MSB selects between write and read.
+#
 
-# Output channel addresses
-sequencer_422sigma = 0b1000+0
-sequencer_1092 = 0b1000+1
-sequencer_422ps_trigger = 0b1000+2
-sequencer_aux = 0b1000+3
-gate_apd0 = 0b1000+4
-gate_apd1 = 0b1000+5
-gate_apd2 = 0b1000+6
-gate_apd3 = 0b1000+7
+CONFIG_W_BASE = 0b00000
+ADDR_W_CONFIG = CONFIG_W_BASE + 0
+ADDR_W_RUN = CONFIG_W_BASE + 1
+ADDR_W_TCYCLE = CONFIG_W_BASE + 2
+ADDR_W_HERALD = CONFIG_W_BASE + 3
 
-# Read only
-ADDR_R_STATUS = 0b10000
-ADDR_R_NCYCLES = 0b10000+1
-ADDR_R_TIMEREMAINING = 0b10000+2
-ADDR_R_NTRIGGERS = 0b10000+3
-timestamp_apd0 = 0b11000+0
-timestamp_apd1 = 0b11000+1
-timestamp_apd2 = 0b11000+2
-timestamp_apd3 = 0b11000+3
-timestamp_422ps = 0b11000+4
+TIMING_W_BASE = 0b01000
+sequencer_422sigma = TIMING_W_BASE + 0
+sequencer_1092 = TIMING_W_BASE + 1
+sequencer_422ps_trigger = TIMING_W_BASE + 2
+sequencer_aux = TIMING_W_BASE + 3
+gate_apd0 = TIMING_W_BASE + 4
+gate_apd1 = TIMING_W_BASE + 5
+gate_apd2 = TIMING_W_BASE + 6
+gate_apd3 = TIMING_W_BASE + 7
+
+STATUS_R_BASE = 0b10000
+ADDR_R_STATUS = STATUS_R_BASE + 0
+ADDR_R_NCYCLES = STATUS_R_BASE + 1
+ADDR_R_TIMEREMAINING = STATUS_R_BASE + 2
+ADDR_R_NTRIGGERS = STATUS_R_BASE + 3
+
+TIMESTAMP_R_BASE = 0b11000
+timestamp_apd0 = TIMESTAMP_R_BASE + 0
+timestamp_apd1 = TIMESTAMP_R_BASE + 1
+timestamp_apd2 = TIMESTAMP_R_BASE + 2
+timestamp_apd3 = TIMESTAMP_R_BASE + 3
+timestamp_422ps = TIMESTAMP_R_BASE + 4
 
 
 class Entangler:

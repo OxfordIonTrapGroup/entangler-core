@@ -81,7 +81,7 @@ class Entangler(Module):
 
 
         read = Signal()
-        read_timings = Signal()
+        read_timestamps = Signal()
         read_addr = Signal(3)
 
         # Input timestamps are [apd0, apd1, apd2, apd3, ref]
@@ -100,7 +100,7 @@ class Entangler(Module):
                 ),
                 If(self.rtlink.o.stb,
                     read.eq(read_en),
-                    read_timings.eq(self.rtlink.o.address[3:5] == 0b11),
+                    read_timestamps.eq(self.rtlink.o.address[3:5] == 0b11),
                     read_addr.eq(self.rtlink.o.address[:3]),
                 )
         ]
@@ -129,5 +129,5 @@ class Entangler(Module):
             self.rtlink.i.data.eq(
                 Mux(self.core.enable & self.core.msm.done_stb,
                     Mux(self.core.msm.success, self.core.heralder.matches, 0x3fff),
-                    Mux(read_timings, timing_data, reg_read)))
+                    Mux(read_timestamps, timing_data, reg_read)))
         ]
