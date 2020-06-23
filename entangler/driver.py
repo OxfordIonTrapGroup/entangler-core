@@ -13,13 +13,14 @@ import numpy as np
 # the output event data). By convention, the MSB selects between write and read.
 #
 
-ADDR_W_CONFIG_BASE = 0b00000
+ADDR_W_CONFIG_BASE = 0b000000
 ADDR_W_CONFIG = ADDR_W_CONFIG_BASE + 0
 ADDR_W_RUN = ADDR_W_CONFIG_BASE + 1
 ADDR_W_TCYCLE = ADDR_W_CONFIG_BASE + 2
 ADDR_W_HERALD = ADDR_W_CONFIG_BASE + 3
+ADDR_W_COUNTERS = ADDR_W_CONFIG_BASE + 4
 
-ADDR_W_TIMING_BASE = 0b01000
+ADDR_W_TIMING_BASE = 0b001000
 sequencer_422sigma = ADDR_W_TIMING_BASE + 0
 sequencer_1092 = ADDR_W_TIMING_BASE + 1
 sequencer_422ps_trigger = ADDR_W_TIMING_BASE + 2
@@ -29,18 +30,31 @@ gate_apd1 = ADDR_W_TIMING_BASE + 5
 gate_apd2 = ADDR_W_TIMING_BASE + 6
 gate_apd3 = ADDR_W_TIMING_BASE + 7
 
-ADDR_R_STATUS_BASE = 0b10000
+ADDR_W_COUNTER_PATTERN_BASE = 0b010000
+
+ADDR_R_STATUS_BASE = 0b100000
 ADDR_R_STATUS = ADDR_R_STATUS_BASE + 0
 ADDR_R_NCYCLES = ADDR_R_STATUS_BASE + 1
 ADDR_R_TIMEREMAINING = ADDR_R_STATUS_BASE + 2
 ADDR_R_NTRIGGERS = ADDR_R_STATUS_BASE + 3
 
-ADDR_R_TIMESTAMP_BASE = 0b11000
+ADDR_R_TIMESTAMP_BASE = 0b101000
 timestamp_apd0 = ADDR_R_TIMESTAMP_BASE + 0
 timestamp_apd1 = ADDR_R_TIMESTAMP_BASE + 1
 timestamp_apd2 = ADDR_R_TIMESTAMP_BASE + 2
 timestamp_apd3 = ADDR_R_TIMESTAMP_BASE + 3
 timestamp_422ps = ADDR_R_TIMESTAMP_BASE + 4
+
+ADDR_R_COUNTER_RESULT_BASE = 0b110000
+
+
+def _patterns_to_int(patterns):
+    data = 0
+    assert len(patterns) <= 4
+    for i in range(len(patterns)):
+        data |= (patterns[i] & 0xf) << (4*i)
+        data |= 1<<(16+i)
+    return data
 
 
 class Entangler:
@@ -168,12 +182,7 @@ class Entangler:
         to herald on apd1_b, apd2_b: set_heralds(0b1010)
         To herald on both: set_heralds(0b0001, 0b1010)
         """
-        data = 0
-        assert len(heralds) <= 4
-        for i in range(len(heralds)):
-            data |= (heralds[i] & 0xf) << (4*i)
-            data |= 1<<(16+i)
-        self.write(ADDR_W_HERALD, data)
+        self.write(ADDR_W_HERALD, _patterns_to_int(heralds))
 
     @kernel
     def run_mu(self, duration_mu):
@@ -229,3 +238,38 @@ class Entangler:
         the detected rising edge.
         """
         return self.read(channel)
+
+    @kernel
+    def get_input_count(self, idx):
+        """Get the number of matches on the given (gated) input channel event counter
+        since the last call to run[_mu]().
+        """
+        assert 0 <= idx < 4, "Input counter index needs to be in 0..4"
+        return self.read(ADDR_R_COUNTER_RESULT_BASE + idx)
+
+    @kernel
+    def get_pattern_count(self, idx):
+        """Get the number of matches on the given pattern counter since the last call
+        to run[_mu]().
+        """
+        assert 0 <= idx < 4, "Pattern counter index needs to be in 0..4"
+        return self.read(ADDR_R_COUNTER_RESULT_BASE + 4 + idx)
+
+    @kernel
+    def set_counter_patterns(self, idx, patterns):
+        """Configure the patterns matched by the given pattern counter."""
+
+        assert 0 <= idx < 4, "Pattern counter index needs to be in 0..4"
+
+        assert len(patterns) > 0, "Need at least one pattern per counter"
+        assert len(patterns) <= 4, "At most four patterns are supported per counter"
+
+        # Fill leftover slots with first element to effectively ignore them.
+        full_patterns = [0] * 4
+        for i in range(len(patterns)):
+            full_patterns[i] = patterns[i]
+        for i in range(len(patterns), len(full_patterns)):
+            full_patterns[i] = patterns[0]
+
+        return self.write(ADDR_W_COUNTER_PATTERN_BASE + idx,
+            _patterns_to_int(full_patterns))

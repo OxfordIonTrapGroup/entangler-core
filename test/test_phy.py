@@ -126,6 +126,9 @@ def test_basic(dut):
     for i, expected in enumerate(expected_timestamps):
         yield from out(ADDR_R_TIMESTAMP_BASE + i, 0)
         assert (yield from read(2)) == expected
+    for i, expected in enumerate([1, 1, 0, 0]):
+        yield from out(ADDR_R_COUNTER_RESULT_BASE + i, 0)
+        assert (yield from read(2)) == expected
     for _ in range(5):
         yield
 

@@ -15,36 +15,41 @@ class Entangler(Module):
             not running
         input_phys: serdes phys for 5 inputs – APD0-3 and 422ps trigger in
         """
+
+        event_counter_width = 14
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
                 data_width=32,
-                address_width=5,
+                address_width=6,
                 enable_replace=False),
             rtlink.IInterface(
-                data_width=14,
+                data_width=max(14, event_counter_width),
                 timestamped=True)
             )
 
         # # #
 
-        self.submodules.core = ClockDomainsRenamer("rio")(
-                    EntanglerCore(core_link_pads, output_pads, passthrough_sigs,
-                        input_phys, simulate=simulate))
 
-        read_en = self.rtlink.o.address[4]
+        self.submodules.core = ClockDomainsRenamer("rio")(EntanglerCore(
+            core_link_pads, output_pads, passthrough_sigs, input_phys,
+            event_counter_width, simulate=simulate))
+
+        read_en = self.rtlink.o.address[5]
         write_timings = Signal()
+        write_patterns = Signal()
         self.comb += [
             self.rtlink.o.busy.eq(0),
-            write_timings.eq(self.rtlink.o.address[3:5] == 1),
+            write_timings.eq(self.rtlink.o.address[3:6] == 1),
+            write_patterns.eq(self.rtlink.o.address[3:6] == 2),
         ]
 
         output_t_starts = [seq.m_start for seq in self.core.sequencers]
         output_t_ends = [seq.m_stop for seq in self.core.sequencers]
         output_t_starts += [gater.gate_start for gater in self.core.apd_gaters]
         output_t_ends += [gater.gate_stop for gater in self.core.apd_gaters]
-        cases = {}
+        write_timing_cases = {}
         for i in range(len(output_t_starts)):
-            cases[i] = [output_t_starts[i].eq(self.rtlink.o.data[:16]),
+            write_timing_cases[i] = [output_t_starts[i].eq(self.rtlink.o.data[:16]),
                         output_t_ends[i].eq(self.rtlink.o.data[16:])]
 
         # Write timeout counter and start core running
@@ -55,22 +60,30 @@ class Entangler(Module):
 
         self.sync.rio += [
             If(write_timings & self.rtlink.o.stb,
-                    Case(self.rtlink.o.address[:3], cases)
-                ),
-            If( (self.rtlink.o.address==0) & self.rtlink.o.stb,
-                    # Write config
-                    self.core.enable.eq(self.rtlink.o.data[0]),
-                    self.core.msm.standalone.eq(self.rtlink.o.data[2]),
-                ),
-            If( (self.rtlink.o.address==2) & self.rtlink.o.stb,
-                    # Write cycle length
-                    self.core.msm.m_end.eq(self.rtlink.o.data[:10])
-                ),
-            If( (self.rtlink.o.address==3) & self.rtlink.o.stb,
-                    # Write herald patterns and enables
-                    *[self.core.heralder.patterns[i].eq(self.rtlink.o.data[4*i:4*(i+1)]) for i in range(4)],
-                    self.core.heralder.pattern_ens.eq(self.rtlink.o.data[16:20])
-                ),
+               Case(self.rtlink.o.address[:3], write_timing_cases)
+            ),
+            If(write_patterns & self.rtlink.o.stb,
+                Cat(
+                    *Array(p.patterns for p in self.core.pattern_counters)[
+                        self.rtlink.o.address[:3]]).eq(self.rtlink.o.data)
+            ),
+            If((self.rtlink.o.address == 0) & self.rtlink.o.stb,
+                # Write config
+                self.core.enable.eq(self.rtlink.o.data[0]),
+                self.core.msm.standalone.eq(self.rtlink.o.data[2]),
+            ),
+            If((self.rtlink.o.address == 2) & self.rtlink.o.stb,
+                # Write cycle length
+                self.core.msm.m_end.eq(self.rtlink.o.data[:10])
+            ),
+            If((self.rtlink.o.address == 3) & self.rtlink.o.stb,
+                # Write herald patterns and enables
+                *[
+                    self.core.heralder.patterns[i].eq(
+                        self.rtlink.o.data[4 * i:4 * (i + 1)]) for i in range(4)
+                ],
+                self.core.heralder.pattern_ens.eq(self.rtlink.o.data[16:20])
+            ),
         ]
 
         # Write is_master bit in rio_phy reset domain to not break 422ps trigger
@@ -81,6 +94,7 @@ class Entangler(Module):
 
 
         read = Signal()
+        read_counters = Signal()
         read_timestamps = Signal()
         read_addr = Signal(3)
 
@@ -100,7 +114,8 @@ class Entangler(Module):
                 ),
                 If(self.rtlink.o.stb,
                     read.eq(read_en),
-                    read_timestamps.eq(self.rtlink.o.address[3:5] == 0b11),
+                    read_counters.eq(self.rtlink.o.address[3:5] == 0b10),
+                    read_timestamps.eq(self.rtlink.o.address[3:5] == 0b01),
                     read_addr.eq(self.rtlink.o.address[:3]),
                 )
         ]
@@ -110,13 +125,18 @@ class Entangler(Module):
                                    self.core.msm.success,
                                    self.core.msm.timeout))
 
-        reg_read = Signal(14)
+        reg_data = Signal(event_counter_width)
         cases = {}
-        cases[0] = [reg_read.eq(status)]
-        cases[1] = [reg_read.eq(self.core.msm.cycles_completed)]
-        cases[2] = [reg_read.eq(self.core.msm.time_remaining)]
-        cases[3] = [reg_read.eq(self.core.triggers_received)]
+        cases[0] = [reg_data.eq(status)]
+        cases[1] = [reg_data.eq(self.core.msm.cycles_completed)]
+        cases[2] = [reg_data.eq(self.core.msm.time_remaining)]
+        cases[3] = [reg_data.eq(self.core.triggers_received)]
         self.comb += Case(read_addr, cases)
+
+        counter_data = Signal(event_counter_width)
+        self.comb += Case(read_addr,
+            {i: [counter_data.eq(c.counter)]
+             for i, c in enumerate(self.core.counters)})
 
         # Generate an input event if we have a read request RTIO Output event, or if the
         # core has finished. If the core is finished output the herald match, or 0x3fff
@@ -129,5 +149,10 @@ class Entangler(Module):
             self.rtlink.i.data.eq(
                 Mux(self.core.enable & self.core.msm.done_stb,
                     Mux(self.core.msm.success, self.core.heralder.matches, 0x3fff),
-                    Mux(read_timestamps, timing_data, reg_read)))
+                    Mux(read_counters,
+                        counter_data,
+                        Mux(read_timestamps, timing_data, reg_data)
+                    )
+                )
+            )
         ]

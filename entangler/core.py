@@ -1,4 +1,5 @@
 from migen import *
+from functools import reduce
 
 # Width of sequence duration counters and the coarse part of input timestamps
 # (units of clock cycles).
@@ -132,12 +133,51 @@ class Heralder(Module):
         self.comb += self.herald.eq( self.pattern_ens & self.matches != 0 )
 
 
+class CounterBase(Module):
+    def __init__(self, sig_width, counter_width):
+        self.sig = Signal(sig_width)
+        self.counter = Signal(counter_width)
+        self.read_stb = Signal()
+        self.reset = Signal()
+        self._match = Signal()
+
+        self.sync += [
+            If(self.read_stb,
+                If(self._match,
+                    self.counter.eq(self.counter + 1)
+                )
+            ),
+            If(self.reset,
+                self.counter.eq(0)
+            )
+        ]
+
+
+class SingleChannelCounter(CounterBase):
+    """Counts events where a single, fixed gater is asserted."""
+    def __init__(self, n_sig, target_idx, counter_width):
+        super().__init__(n_sig, counter_width)
+        self.comb += self._match.eq(self.sig[target_idx])
+
+
+class PatternCounter(CounterBase):
+    """Counts events where the overall pattern matches at least one of a number of
+    given ones."""
+    def __init__(self, n_sig, num_patterns, counter_width):
+        super().__init__(n_sig, counter_width)
+        self.patterns = [Signal(n_sig) for _ in range(num_patterns)]
+        self.comb += self._match.eq(
+            reduce(lambda a, b: a | b, (self.sig == p for p in self.patterns)))
+
+
 class MainStateMachine(Module):
-    def __init__(self, counter_width=10):
-        self.m = Signal(counter_width) # Global cycle-relative time.
+    def __init__(self, time_cursor_width=10, event_counter_width=14):
+        self.m = Signal(time_cursor_width) # Global cycle-relative time.
         self.time_remaining = Signal(32) # Clock cycles remaining before timeout
         self.time_remaining_buf = Signal(32)
-        self.cycles_completed = Signal(14) # How many iterations of the loop have completed since last start
+
+        #: How many iterations of the loop have completed since last start
+        self.cycles_completed = Signal(event_counter_width)
 
         self.run_stb = Signal() # Pulsed to start core running until timeout or success
         self.done_stb = Signal() # Pulsed when core has finished (on timeout or success)
@@ -165,7 +205,7 @@ class MainStateMachine(Module):
         # Unregistered input from slave
         self.slave_ready_raw = Signal()
 
-        self.m_end = Signal(counter_width) # Number of clock cycles to run main loop for
+        self.m_end = Signal(time_cursor_width) # Number of clock cycles to run main loop for
 
         # Asserted while the entangler is idling, waiting for the entanglement cycle to
         # start.
@@ -218,7 +258,10 @@ class MainStateMachine(Module):
 
         # Ready asserted when run_stb is pulsed, and cleared on success or timeout
         self.sync += [
-            If(self.run_stb, self.ready.eq(1), self.cycles_completed.eq(0), self.success.eq(0)),
+            If(self.run_stb,
+                self.ready.eq(1),
+                self.cycles_completed.eq(0),
+                self.success.eq(0)),
             done_d.eq(done),
             If(finishing, self.ready.eq(0))
         ]
@@ -265,25 +308,42 @@ class MainStateMachine(Module):
         )
 
 
-
-
-
 class EntanglerCore(Module):
-    def __init__(self, core_link_pads, output_pads, passthrough_sigs, input_phys, simulate=False):
+    def __init__(self,
+                 core_link_pads,
+                 output_pads,
+                 passthrough_sigs,
+                 input_phys,
+                 event_counter_width=14,
+                 simulate=False):
         self.enable = Signal()
         # # #
 
         phy_apds = input_phys[0 : 4]
         phy_422pulse = input_phys[4]
 
-        self.submodules.msm = MainStateMachine()
+        self.submodules.msm = MainStateMachine(event_counter_width=event_counter_width)
 
         self.submodules.sequencers = [ChannelSequencer(self.msm.m) for _ in range(4)]
 
         self.submodules.apd_gaters = [InputGater(self.msm.m, phy_422pulse, phy_apd)
                                       for phy_apd in phy_apds]
+        n_sig = len(self.apd_gaters)
 
-        self.submodules.heralder = Heralder(n_sig=4, n_patterns=4)
+        self.submodules.heralder = Heralder(n_sig=n_sig, n_patterns=4)
+
+        self.submodules.single_channel_counters = [
+            SingleChannelCounter(n_sig=n_sig, target_idx=i, counter_width=32)
+            for i in range(n_sig)
+        ]
+
+        self.submodules.pattern_counters = [
+            PatternCounter(n_sig=n_sig, num_patterns=4, counter_width=32)
+            for i in range(4)
+        ]
+
+        self.counters = (self.single_channel_counters +
+                         self.pattern_counters)
 
         if not simulate:
             # To be able to trigger the pulse picker from both systems without
@@ -366,7 +426,7 @@ class EntanglerCore(Module):
 
         # 422ps trigger event counter. We use got_ref from the first gater for
         # convenience (any other channel would work just as well).
-        self.triggers_received = Signal(14)
+        self.triggers_received = Signal(event_counter_width)
         self.sync += [
             If(self.msm.run_stb,
                 self.triggers_received.eq(0)
@@ -376,3 +436,11 @@ class EntanglerCore(Module):
                 )
             )
         ]
+
+        # Connect up event counters.
+        for c in self.counters:
+            self.comb += [
+                c.sig.eq(self.heralder.sig),
+                c.reset.eq(self.msm.run_stb),
+                c.read_stb.eq(self.msm.cycle_ending),
+            ]
