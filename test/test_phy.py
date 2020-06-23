@@ -1,4 +1,5 @@
 from migen import *
+from entangler.driver import *
 from entangler.phy import *
 
 
@@ -64,13 +65,6 @@ class PhyHarness(Module):
         self.comb += self.counter.eq(self.core.core.msm.m)
 
 
-ADDR_CONFIG = 0
-ADDR_RUN = 1
-ADDR_TCYCLE = 2
-ADDR_HERALDS = 3
-ADDR_TIMING = 0b1000
-
-
 def test_basic(dut):
     def out(addr, data):
         yield from rtio_output_event(dut.core.rtlink, addr, data)
@@ -84,7 +78,7 @@ def test_basic(dut):
             assert i < 4
             data |= (h & 0xf) << (4 * i)
             data |= 1 << (16 + i)
-        yield from out(ADDR_HERALDS, data)
+        yield from out(ADDR_W_HERALD, data)
 
     t_ref = 800
     t_apd0 = 820
@@ -99,38 +93,38 @@ def test_basic(dut):
 
     for _ in range(5):
         yield
-    yield from out(ADDR_CONFIG, 0b110)  # disable, standalone
+    yield from out(ADDR_W_CONFIG, 0b110)  # disable, standalone
     yield from write_heralds([0b0101, 0b1010, 0b1100, 0b0011])
     for i in range(4):
-        yield from out(ADDR_TIMING + i, (2 * i + 2) * (1 << 16) | 2 * i + 1)
+        yield from out(ADDR_W_TIMING_BASE + i, (2 * i + 2) * (1 << 16) | 2 * i + 1)
     for i in [0,1]:
-        yield from out(ADDR_TIMING+4+i, (30<<16) | 18)
+        yield from out(ADDR_W_TIMING_BASE + 4 + i, (30<<16) | 18)
     for i in [2,3]:
-        yield from out(ADDR_TIMING+4+i, (1000<<16) | 1000)
+        yield from out(ADDR_W_TIMING_BASE + 4 + i, (1000<<16) | 1000)
 
-    yield from out(ADDR_TCYCLE, 1000 // 8)
+    yield from out(ADDR_W_TCYCLE, 1000 // 8)
 
     # Enable, standalone.
-    yield from out(ADDR_CONFIG, 0b111)
+    yield from out(ADDR_W_CONFIG, 0b111)
 
     # Run for 2µs.
-    yield from out(ADDR_RUN, int(2e3 / 8))
+    yield from out(ADDR_W_RUN, int(2e3 / 8))
 
     assert (yield from read(200)) == 0b1000, "Unexpected pattern"
     yield
 
-    yield from out(0b10000, 0)
+    yield from out(ADDR_R_STATUS, 0)
     assert (yield from read(2)) & 0x2 != 0, "Core not successful"
 
-    yield from out(0b10000 + 1, 0)
+    yield from out(ADDR_R_NCYCLES, 0)
     assert (yield from read(2)) == 1, "Wrong number of cycles"
 
-    yield from out(0b10000 + 2, 0)
-    assert (yield from read(2)) == 114
+    yield from out(ADDR_R_TIMEREMAINING, 0)
+    assert (yield from read(2)) == 114, "Wrong amount of time remaining"
 
     expected_timestamps = [t_apd0 + 8, t_apd1 + 8, 0, 0, t_ref + 8]
     for i, expected in enumerate(expected_timestamps):
-        yield from out(0b11000 + i, 0)
+        yield from out(ADDR_R_TIMESTAMP_BASE + i, 0)
         assert (yield from read(2)) == expected
     for _ in range(5):
         yield
@@ -144,10 +138,10 @@ def test_timeout(dut):
 
     def do_timeout(timeout, n_cycles=10):
         yield
-        yield from out(ADDR_CONFIG, 0b110)  # disable, standalone
-        yield from out(ADDR_TCYCLE, n_cycles)
-        yield from out(ADDR_CONFIG, 0b111)  # Enable standalone
-        yield from out(ADDR_RUN, timeout)
+        yield from out(ADDR_W_CONFIG, 0b110)  # disable, standalone
+        yield from out(ADDR_W_TCYCLE, n_cycles)
+        yield from out(ADDR_W_CONFIG, 0b111)  # Enable standalone
+        yield from out(ADDR_W_RUN, timeout)
 
         timedout = False
         for i in range(timeout + n_cycles + 50):
