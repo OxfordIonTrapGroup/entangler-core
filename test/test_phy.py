@@ -10,6 +10,16 @@ def rtio_output_event(rtlink, addr, data):
     yield rtlink.o.stb.eq(0)
 
 
+def rtio_input(rtlink, timeout):
+    for i in range(timeout):
+        if (yield rtlink.i.stb):
+            break
+        yield
+    else:
+        raise TimeoutError
+    return (yield rtlink.i.data)
+
+
 class MockPhy(Module):
     def __init__(self, counter):
         self.fine_ts = Signal(3)
@@ -23,6 +33,8 @@ class MockPhy(Module):
             If(counter == self.t_event[3:],
                 self.stb_rising.eq(1),
                 self.fine_ts.eq(self.t_event[:3])
+            ).Else(
+                self.stb_rising.eq(0)
             )
         ]
 
@@ -54,7 +66,7 @@ class PhyHarness(Module):
 
 ADDR_CONFIG = 0
 ADDR_RUN = 1
-ADDR_NCYCLES = 2
+ADDR_TCYCLE = 2
 ADDR_HERALDS = 3
 ADDR_TIMING = 0b1000
 
@@ -63,48 +75,63 @@ def test_basic(dut):
     def out(addr, data):
         yield from rtio_output_event(dut.core.rtlink, addr, data)
 
+    def read(timeout):
+        return (yield from rtio_input(dut.core.rtlink, timeout))
+
     def write_heralds(heralds=None):
         data = 0
         for i, h in enumerate(heralds):
             assert i < 4
-            data |= (1 << i) << (4 * 4)
-            data |= h << (4 * i)
+            data |= (h & 0xf) << (4 * i)
+            data |= 1 << (16 + i)
         yield from out(ADDR_HERALDS, data)
 
-    yield dut.phy_ref.t_event.eq(1000)
-    yield dut.phy_apd0.t_event.eq(1000)
-    yield dut.phy_apd1.t_event.eq(1000)
+    t_ref = 800
+    t_apd0 = 820
+    t_apd1 = 825
+    yield dut.phy_ref.t_event.eq(t_ref)
+    yield dut.phy_apd0.t_event.eq(t_apd0)
+    yield dut.phy_apd1.t_event.eq(t_apd1)
+
+    # Outside the test cycle.
+    yield dut.phy_apd2.t_event.eq(10000)
+    yield dut.phy_apd3.t_event.eq(10000)
 
     for _ in range(5):
         yield
     yield from out(ADDR_CONFIG, 0b110)  # disable, standalone
-    yield from write_heralds([0b0101, 0b1010, 0b1100, 0b0101])
+    yield from write_heralds([0b0101, 0b1010, 0b1100, 0b0011])
     for i in range(4):
         yield from out(ADDR_TIMING + i, (2 * i + 2) * (1 << 16) | 2 * i + 1)
-    # for i in [0,2]:
-    #     yield from out(ADDR_TIMING+4+i, (30<<16) | 18)
-    # for i in [1,3]:
-    #     yield from out(ADDR_TIMING+4+i, (1000<<16) | 1000)
-    yield from out(ADDR_NCYCLES, 30)
-    yield from out(ADDR_CONFIG, 0b111)  # Enable standalone
+    for i in [0,1]:
+        yield from out(ADDR_TIMING+4+i, (30<<16) | 18)
+    for i in [2,3]:
+        yield from out(ADDR_TIMING+4+i, (1000<<16) | 1000)
+
+    yield from out(ADDR_TCYCLE, 1000 // 8)
+
+    # Enable, standalone.
+    yield from out(ADDR_CONFIG, 0b111)
+
+    # Run for 2µs.
     yield from out(ADDR_RUN, int(2e3 / 8))
 
-    for i in range(1000):
-        # if i==200:
-        #     yield dut.phy_ref.t_event.eq( 8*10+3 )
-        #     yield dut.phy_apd0.t_event.eq( 8*10+3 + 18)
-        #     yield dut.phy_apd1.t_event.eq( 8*10+3 + 30)
-        yield
+    assert (yield from read(200)) == 0b1000, "Unexpected pattern"
+    yield
 
-    yield from out(0b10000, 0)  # Read status
-    yield
-    yield from out(0b10000 + 1, 0)  # Read n_cycles
-    yield
-    yield from out(0b10000 + 2, 0)  # Read time elapsed
-    yield
-    for i in range(5):
-        yield from out(0b11000 + i, 0)  # Read input timestamps
-        yield
+    yield from out(0b10000, 0)
+    assert (yield from read(2)) & 0x2 != 0, "Core not successful"
+
+    yield from out(0b10000 + 1, 0)
+    assert (yield from read(2)) == 1, "Wrong number of cycles"
+
+    yield from out(0b10000 + 2, 0)
+    assert (yield from read(2)) == 114
+
+    expected_timestamps = [t_apd0 + 8, t_apd1 + 8, 0, 0, t_ref + 8]
+    for i, expected in enumerate(expected_timestamps):
+        yield from out(0b11000 + i, 0)
+        assert (yield from read(2)) == expected
     for _ in range(5):
         yield
 
@@ -118,7 +145,7 @@ def test_timeout(dut):
     def do_timeout(timeout, n_cycles=10):
         yield
         yield from out(ADDR_CONFIG, 0b110)  # disable, standalone
-        yield from out(ADDR_NCYCLES, n_cycles)
+        yield from out(ADDR_TCYCLE, n_cycles)
         yield from out(ADDR_CONFIG, 0b111)  # Enable standalone
         yield from out(ADDR_RUN, timeout)
 
