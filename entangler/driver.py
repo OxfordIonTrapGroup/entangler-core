@@ -249,8 +249,8 @@ class Entangler:
 
     @kernel
     def get_pattern_count(self, idx):
-        """Get the number of matches on the given pattern counter since the last call
-        to run[_mu]().
+        """Get the number of matches on the given pattern event counter since the last
+        call to run[_mu]().
         """
         assert 0 <= idx < 4, "Pattern counter index needs to be in 0..4"
         return self.read(ADDR_R_COUNTER_RESULT_BASE + 4 + idx)

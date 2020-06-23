@@ -107,7 +107,7 @@ def test_basic(dut):
     # Enable, standalone.
     yield from out(ADDR_W_CONFIG, 0b111)
 
-    # Run for 2µs.
+    # Run for 2 µs (which is not actually used up).
     yield from out(ADDR_W_RUN, int(2e3 / 8))
 
     assert (yield from read(200)) == 0b1000, "Unexpected pattern"
