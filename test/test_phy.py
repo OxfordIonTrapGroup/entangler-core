@@ -134,7 +134,7 @@ def test_timeout(dut):
 
 if __name__ == "__main__":
     dut = PhyHarness()
-    run_simulation(dut, test_basic(dut), vcd_name="phy.vcd",  clocks={"sys": 8, "rio":8})
+    run_simulation(dut, test_basic(dut), vcd_name="phy.vcd",  clocks={"sys": 8, "rio":8, "rio_phy":8})
 
     dut = PhyHarness()
-    run_simulation(dut, test_timeout(dut), vcd_name="phy_timeout.vcd",  clocks={"sys": 8, "rio":8})
+    run_simulation(dut, test_timeout(dut), vcd_name="phy_timeout.vcd",  clocks={"sys": 8, "rio":8, "rio_phy":8})
