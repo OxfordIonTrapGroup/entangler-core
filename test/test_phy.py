@@ -72,14 +72,6 @@ def test_basic(dut):
     def read(timeout):
         return (yield from rtio_input(dut.core.rtlink, timeout))
 
-    def write_heralds(heralds=None):
-        data = 0
-        for i, h in enumerate(heralds):
-            assert i < 4
-            data |= (h & 0xf) << (4 * i)
-            data |= 1 << (16 + i)
-        yield from out(ADDR_W_HERALD, data)
-
     t_ref = 800
     t_apd0 = 820
     t_apd1 = 825
@@ -94,7 +86,7 @@ def test_basic(dut):
     for _ in range(5):
         yield
     yield from out(ADDR_W_CONFIG, 0b110)  # disable, standalone
-    yield from write_heralds([0b0101, 0b1010, 0b1100, 0b0011])
+    yield from out(ADDR_W_HERALD, patterns_to_reg([0b0101, 0b1010, 0b1100, 0b0011]))
     for i in range(4):
         yield from out(ADDR_W_TIMING_BASE + i, (2 * i + 2) * (1 << 16) | 2 * i + 1)
     for i in [0,1]:

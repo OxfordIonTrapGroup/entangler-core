@@ -48,7 +48,7 @@ timestamp_422ps = ADDR_R_TIMESTAMP_BASE + 4
 ADDR_R_COUNTER_RESULT_BASE = 0b110000
 
 
-def _patterns_to_int(patterns):
+def patterns_to_reg(patterns):
     data = 0
     assert len(patterns) <= 4
     for i in range(len(patterns)):
@@ -182,7 +182,7 @@ class Entangler:
         to herald on apd1_b, apd2_b: set_heralds(0b1010)
         To herald on both: set_heralds(0b0001, 0b1010)
         """
-        self.write(ADDR_W_HERALD, _patterns_to_int(heralds))
+        self.write(ADDR_W_HERALD, patterns_to_reg(heralds))
 
     @kernel
     def run_mu(self, duration_mu):
@@ -272,4 +272,4 @@ class Entangler:
             full_patterns[i] = patterns[0]
 
         return self.write(ADDR_W_COUNTER_PATTERN_BASE + idx,
-            _patterns_to_int(full_patterns))
+            patterns_to_reg(full_patterns))
