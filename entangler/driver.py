@@ -175,12 +175,12 @@ class Entangler:
     def set_heralds(self, heralds):
         """Set the count patterns that cause the entangler loop to exit
 
+        Each pattern is a 4 bit number, with the order (LSB first) apd0, apd1, apd2, and
+        apd3. For instance, to set a herald on apd0 only, ``set_heralds([0b0001])``, for
+        apd1 and apd3, ``set_heralds([0b1010])``, or to herald when either occurs,
+        ``set_heralds([0b0001, 0b1010])``.
+
         Up to 4 patterns can be set.
-        Each pattern is a 4 bit number, with the order (LSB first)
-        apd1_a, apd1_b, apd2_a, apd2_b.
-        E.g. to set a herald on apd1_a only: set_heralds(0b0001)
-        to herald on apd1_b, apd2_b: set_heralds(0b1010)
-        To herald on both: set_heralds(0b0001, 0b1010)
         """
         self.write(ADDR_W_HERALD, patterns_to_reg(heralds))
 
