@@ -125,6 +125,104 @@ def test_basic(dut):
         yield
 
 
+def test_patterns(dut):
+    def out(addr, data):
+        yield from rtio_output_event(dut.core.rtlink, addr, data)
+
+    def read(timeout):
+        return (yield from rtio_input(dut.core.rtlink, timeout))
+
+    for _ in range(5):
+        yield
+    yield from out(ADDR_W_CONFIG, 0b110)  # disable, standalone
+    yield from out(ADDR_W_HERALD, patterns_to_reg([0b0101, 0b1010, 0b1100, 0b0011]))
+    for i in range(4):
+        yield from out(ADDR_W_TIMING_BASE + i, (2 * i + 2) * (1 << 16) | 2 * i + 1)
+    for i in range(4):
+        yield from out(ADDR_W_TIMING_BASE + 4 + i, (30<<16) | 18)
+
+    yield from out(ADDR_W_COUNTER_PATTERN_BASE + 0, patterns_to_reg([0b0001] * 4))
+    yield from out(ADDR_W_COUNTER_PATTERN_BASE + 1, patterns_to_reg([0b1001] * 4))
+    yield from out(ADDR_W_COUNTER_PATTERN_BASE + 2, patterns_to_reg([0b1001, 0b0110] * 2))
+    yield from out(ADDR_W_COUNTER_PATTERN_BASE + 3, patterns_to_reg([0b1100] * 4))
+
+    yield from out(ADDR_W_TCYCLE, 1000 // 8)
+
+    # Enable, standalone.
+    yield from out(ADDR_W_CONFIG, 0b111)
+
+    # Run for 5 µs (which is not actually used up).
+    yield from out(ADDR_W_RUN, int(5e3 / 8))
+    yield
+
+    # Some timings used below: Reference timestamp, two photons, and one outside the
+    # cycle duration to effectively disable the mock channels.
+    tr = 800
+    t0 = 820
+    t1 = 825
+    tnil = 10000
+
+    # Do a few rounds, only the last of which is a valid herald.
+
+    yield dut.phy_ref.t_event.eq(tr)
+    yield dut.phy_apd0.t_event.eq(t0)
+    yield dut.phy_apd1.t_event.eq(tnil)
+    yield dut.phy_apd2.t_event.eq(tnil)
+    yield dut.phy_apd3.t_event.eq(tnil)
+    while not (yield dut.core.core.msm.cycle_ending):
+        yield
+    yield
+
+    yield dut.phy_ref.t_event.eq(tr)
+    yield dut.phy_apd0.t_event.eq(t0)
+    yield dut.phy_apd1.t_event.eq(tnil)
+    yield dut.phy_apd2.t_event.eq(tnil)
+    yield dut.phy_apd3.t_event.eq(t1)
+    while not (yield dut.core.core.msm.cycle_ending):
+        yield
+    yield
+
+    yield dut.phy_ref.t_event.eq(tr)
+    yield dut.phy_apd0.t_event.eq(tnil)
+    yield dut.phy_apd1.t_event.eq(t0)
+    yield dut.phy_apd2.t_event.eq(t1)
+    yield dut.phy_apd3.t_event.eq(tnil)
+    while not (yield dut.core.core.msm.cycle_ending):
+        yield
+    yield
+
+    yield dut.phy_ref.t_event.eq(tr)
+    yield dut.phy_apd0.t_event.eq(tnil)
+    yield dut.phy_apd1.t_event.eq(tnil)
+    yield dut.phy_apd2.t_event.eq(t0)
+    yield dut.phy_apd3.t_event.eq(t1)
+    while not (yield dut.core.core.msm.cycle_ending):
+        yield
+    yield
+
+    assert (yield from read(2)) == 0b0100, "Unexpected pattern"
+    yield
+
+    yield from out(ADDR_R_STATUS, 0)
+    assert (yield from read(2)) & 0x2 != 0, "Core not successful"
+
+    yield from out(ADDR_R_NCYCLES, 0)
+    assert (yield from read(2)) == 4, "Wrong number of cycles"
+
+    yield from out(ADDR_R_TIMEREMAINING, 0)
+    assert (yield from read(2)) == 102, "Wrong amount of time remaining"
+
+    for i, expected in enumerate([2, 1, 2, 2]):
+        yield from out(ADDR_R_COUNTER_RESULT_BASE + i, 0)
+        assert (yield from read(2)) == expected, "Unexpected channel counter"
+    for i, expected in enumerate([1, 1, 2, 1]):
+        yield from out(ADDR_R_COUNTER_RESULT_BASE + 4 + i, 0)
+        assert (yield from read(2)) == expected, "Unexpected pattern counter"
+    for _ in range(5):
+        yield
+
+
+
 def test_timeout(dut):
     """Test that timeout works as the timeout is swept to occur at all possible
     points in the state machine operation"""
@@ -159,7 +257,17 @@ if __name__ == "__main__":
     dut = PhyHarness()
     run_simulation(dut,
                    test_basic(dut),
-                   vcd_name="phy.vcd",
+                   vcd_name="phy_basic.vcd",
+                   clocks={
+                       "sys": 8,
+                       "rio": 8,
+                       "rio_phy": 8
+                   })
+
+    dut = PhyHarness()
+    run_simulation(dut,
+                   test_patterns(dut),
+                   vcd_name="phy_patterns.vcd",
                    clocks={
                        "sys": 8,
                        "rio": 8,
