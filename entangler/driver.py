@@ -48,7 +48,8 @@ timestamp_422ps = ADDR_R_TIMESTAMP_BASE + 4
 ADDR_R_COUNTER_RESULT_BASE = 0b110000
 
 
-def patterns_to_reg(patterns):
+@portable
+def patterns_to_reg(patterns) -> TInt32:
     data = 0
     assert len(patterns) <= 4
     for i in range(len(patterns)):
