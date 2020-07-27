@@ -1,8 +1,9 @@
 """ARTIQ kernel interface to the entangler core."""
 
-from artiq.language.core import kernel, delay, now_mu, delay_mu, portable
-from artiq.language.units import us, ns
-from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamped_data
+from artiq.language.core import delay_mu, kernel, portable
+from artiq.language.types import TInt32
+from artiq.coredevice.rtio import (rtio_output, rtio_input_data,
+                                   rtio_input_timestamped_data)
 import numpy as np
 
 #
@@ -53,8 +54,8 @@ def patterns_to_reg(patterns) -> TInt32:
     data = 0
     assert len(patterns) <= 4
     for i in range(len(patterns)):
-        data |= (patterns[i] & 0xf) << (4*i)
-        data |= 1<<(16+i)
+        data |= (patterns[i] & 0xf) << (4 * i)
+        data |= 1 << (16 + i)
     return data
 
 
@@ -74,7 +75,7 @@ class Entangler:
 
     @kernel
     def init(self):
-        self.set_config() # Write is_master
+        self.set_config()  # Write is_master
 
     @kernel
     def write(self, addr, value):
@@ -113,9 +114,9 @@ class Entangler:
         if enable:
             data |= 1
         if self.is_master:
-            data |= 1<<1
+            data |= 1 << 1
         if standalone:
-            data |= 1<<2
+            data |= 1 << 2
         self.write(ADDR_W_CONFIG, data)
 
     @kernel
@@ -144,7 +145,7 @@ class Entangler:
         # Truncate to 14 bits
         t_start_mu &= 0x3fff
         t_stop_mu &= 0x3fff
-        self.write(channel, (t_stop_mu<<16) | t_start_mu)
+        self.write(channel, (t_stop_mu << 16) | t_start_mu)
 
     @kernel
     def set_timing(self, channel, t_start, t_stop):
@@ -263,7 +264,8 @@ class Entangler:
         assert 0 <= idx < 4, "Pattern counter index needs to be in 0..4"
 
         assert len(patterns) > 0, "Need at least one pattern per counter"
-        assert len(patterns) <= 4, "At most four patterns are supported per counter"
+        assert len(
+            patterns) <= 4, "At most four patterns are supported per counter"
 
         # Fill leftover slots with first element to effectively ignore them.
         full_patterns = [0] * 4
@@ -273,4 +275,4 @@ class Entangler:
             full_patterns[i] = patterns[0]
 
         return self.write(ADDR_W_COUNTER_PATTERN_BASE + idx,
-            patterns_to_reg(full_patterns))
+                          patterns_to_reg(full_patterns))
