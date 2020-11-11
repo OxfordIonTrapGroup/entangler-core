@@ -13,10 +13,10 @@ build:
 
 requirements:
   build:
-    - python 3.8*
+    - python >=3.8.0
     - migen
   run:
-    - python 3.8*
+    - python >=3.8.0
     - migen
 
 # test:
