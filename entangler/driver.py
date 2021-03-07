@@ -1,7 +1,7 @@
 """ARTIQ kernel interface to the entangler core."""
 
 from artiq.language.core import delay_mu, kernel, portable
-from artiq.language.types import TInt32
+from artiq.language.types import TInt32, TList
 from artiq.coredevice.rtio import (rtio_output, rtio_input_data,
                                    rtio_input_timestamped_data)
 import numpy as np
@@ -50,7 +50,7 @@ ADDR_R_COUNTER_RESULT_BASE = 0b110000
 
 
 @portable
-def patterns_to_reg(patterns) -> TInt32:
+def patterns_to_reg(patterns: TList(TInt32)) -> TInt32:
     data = 0
     assert len(patterns) <= 4
     for i in range(len(patterns)):
