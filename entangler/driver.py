@@ -233,7 +233,7 @@ class Entangler:
         return self.read(ADDR_R_TIMEREMAINING)
 
     @kernel
-    def get_timestamp_mu(self, channel):
+    def get_timestamp_mu(self, channel: TInt32) -> TInt32:
         """Get the input timestamp for a channel
 
         The timestamp is the time offset, in mu, from the start of the cycle to
